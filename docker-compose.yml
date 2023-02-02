@@ -1,0 +1,27 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: toor
+      POSTGRES_DB: chat
+    ports:
+      - "5432:5432/tcp"
+    networks:
+      - demo-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8180:8080/tcp"
+    networks:
+      - demo-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+networks:
+  demo-net:
