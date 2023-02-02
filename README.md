@@ -64,3 +64,14 @@ networks:
 ```
 
 You can find complete docker-compose in project files.
+
+When you download project:
+- Run "docker-compose up" when in folder that contains that file
+- Then Create appsetings.json with own settings with email provider information
+- Place json in project folder (where is Program.cs)
+- Run "docker build -t MY_IMAGE_NAME ." while being in folder that contains dockerfile
+- Then run "docker run -dp OPPENED_PORT:CONTAINER_PORT MY_IMAGE_NAME --name CONTAINER_NAME"
+
+After these actions, the app should be working in the background in docker container,
+database also, remember that the app is using database with configuration and credentials that were set in
+appsettings.json
