@@ -47,6 +47,8 @@ partial class CreateNewsletter
         }
 
         _logger.LogInformation("Submit button clicked");
+
+        _state.Clear();
         _state.Success = "Successfully sent emails.";
 
         _mailModel = new();
