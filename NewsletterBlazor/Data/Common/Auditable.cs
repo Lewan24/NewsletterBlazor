@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace NewsletterBlazor.Data.Entities;
+namespace NewsletterBlazor.Data.Common;
 
 public record Auditable
 {

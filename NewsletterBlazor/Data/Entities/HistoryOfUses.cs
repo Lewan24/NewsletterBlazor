@@ -1,4 +1,6 @@
-﻿namespace NewsletterBlazor.Data.Entities;
+﻿using NewsletterBlazor.Data.Common;
+
+namespace NewsletterBlazor.Data.Entities;
 
 public record HistoryOfUses : Auditable
 {
