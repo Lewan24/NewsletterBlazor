@@ -1,0 +1,11 @@
+@using Microsoft.AspNetCore.Identity;
+@using NewsletterBlazor.Data;
+
+@attribute [Authorize(Roles = "User")]
+
+@inject UserManager<IdentityUser> _userManager
+@inject ApplicationDbContext _context
+@inject ILogger<CreateNewsletter> _logger
+@inject IConfiguration _configuration
+
+<h1>Create new news</h1>

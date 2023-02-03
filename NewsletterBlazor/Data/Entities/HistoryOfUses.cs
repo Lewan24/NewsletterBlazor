@@ -1,6 +1,6 @@
 ﻿namespace NewsletterBlazor.Data.Entities;
 
-public class HistoryOfUses : Auditable
+public record HistoryOfUses : Auditable
 {
     public Guid UserId { get; set; }
     public int HowManyEmailsSent { get; set; }

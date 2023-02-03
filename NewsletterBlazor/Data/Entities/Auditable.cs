@@ -2,7 +2,7 @@
 
 namespace NewsletterBlazor.Data.Entities;
 
-public class Auditable
+public record Auditable
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
