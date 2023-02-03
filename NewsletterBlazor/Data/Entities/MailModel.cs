@@ -11,7 +11,6 @@ public record MailModel
     [StringLength(600)]
     public string Body { get; set; } = "";
     public Stream? Attachtment { get; set; }
-    [Required]
-    public List<string> Receivers { get; set; }
+    public List<string> Receivers { get; set; } = new();
     public bool IsHTML { get; set; } = false;
 }

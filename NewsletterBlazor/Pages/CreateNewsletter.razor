@@ -14,14 +14,14 @@
 <EditForm Model="@_mailModel" OnValidSubmit="@SendNewsletter">
     <ValidationSummary/>
     <DataAnnotationsValidator/>
-
+    
     <div class="form-floating mb-3">
         <input type="text" class="form-control" id="subjectinput" placeholder="Subject..." @bind="_mailModel.Subject">
         <label for="subjectinput">Subject...</label>
     </div>
 
     <div class="form-floating mb-3">
-        <input type="text" class="form-control" id="bodyinput" placeholder="Body..." @bind="_mailModel.Body">
+        <textarea class="form-control" id="bodyinput" placeholder="Body..." @bind="_mailModel.Body" />
         <label for="bodyinput">Body...</label>
     </div>
 
@@ -44,3 +44,10 @@
     <button class="btn btn-success" type="submit">Submit</button>
 
 </EditForm>
+
+<div>
+    <br />
+    <span class="" style="color:green">@_state.Success</span>
+    <span class="" style="color:yellow">@_state.Warning</span>
+    <span class="" style="color:red">@_state.Error</span>
+</div>
