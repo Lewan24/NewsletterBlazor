@@ -18,6 +18,10 @@ Example:
     "Port": "587",
     "Email": "sender",
     "Password": "1234abcd"
+	"EmailName": "Name of sender like no-reply"
+  },
+  "Administration": {
+    "Admin": "admin's email"
   },
   "Logging": {
     "LogLevel": {
