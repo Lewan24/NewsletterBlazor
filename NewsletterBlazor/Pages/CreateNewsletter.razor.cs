@@ -1,4 +1,6 @@
-﻿using NewsletterBlazor.Data.Entities;
+﻿using Microsoft.AspNetCore.Components.Forms;
+using NewsletterBlazor.Data.Entities;
+using System.IO;
 
 namespace NewsletterBlazor.Pages;
 
@@ -8,7 +10,7 @@ partial class CreateNewsletter
 {
     private ServerConfig _serverConfig;
     private MailModel _mailModel = new();
-    private Stream tempReceiversListAsFile;
+    private IBrowserFile tempReceiversListAsFile;
     private State _state = new();
 
     private class State
@@ -36,9 +38,28 @@ partial class CreateNewsletter
         };
     }
 
-    private void SendNewsletter()
+    private async Task LoadReceivers(InputFileChangeEventArgs e)
     {
-        _mailModel.Receivers.Add("asd");
+        _mailModel.Receivers.Clear();
+
+        try
+        {
+            var file = e.File;
+            using (var streamReader = new StreamReader(file.OpenReadStream()))
+            {
+                var content = await streamReader.ReadToEndAsync();
+                _mailModel.Receivers = content.Split("\n").ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error: {Error}", ex.Message);
+        }
+    }
+
+    private async Task HandleForm()
+    {
+        _state.Clear();
 
         if (_mailModel.Receivers.Count == 0)
         {
@@ -46,10 +67,7 @@ partial class CreateNewsletter
             return;
         }
 
-        _logger.LogInformation("Submit button clicked");
-
-        _state.Clear();
-        _state.Success = "Successfully sent emails.";
+        _logger.LogInformation($"Successfully read file, number of receivers: {_mailModel.Receivers.Count}");
 
         _mailModel = new();
     }
