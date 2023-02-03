@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NewsletterBlazor.Areas.Identity;
 using NewsletterBlazor.Data;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
