@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace NewsletterBlazor.Data.Entities;
+namespace NewsletterBlazor.Data.Common;
 
-public class Auditable
+public record Auditable
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();

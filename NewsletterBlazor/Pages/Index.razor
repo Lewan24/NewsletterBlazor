@@ -1,9 +1,13 @@
 ﻿@page "/"
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<AuthorizeView>
+    <Authorized>
+        <CreateNewsletter />
+    </Authorized>
 
-Welcome to your new app.
-
-<SurveyPrompt Title="How is Blazor working for you?" />
+    <NotAuthorized>
+        <p>You're not authorized. Sign in/up to be allowed to use the page.</p>
+    </NotAuthorized>
+</AuthorizeView>

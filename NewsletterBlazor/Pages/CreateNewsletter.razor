@@ -1,0 +1,93 @@
+@using Microsoft.AspNetCore.Identity;
+@using NewsletterBlazor.Data;
+@using NewsletterBlazor.Data.Entities;
+
+@attribute [Authorize(Roles = "User")]
+
+@inject UserManager<IdentityUser> _userManager
+@inject ApplicationDbContext _context
+@inject ILogger<CreateNewsletter> _logger
+@inject IConfiguration _configuration
+@inject AuthenticationStateProvider _AuthenticationStateProvider
+
+<h2>Create new news</h2>
+
+<EditForm Model="@_mailModel" OnValidSubmit="@HandleForm">
+    <ValidationSummary/>
+    <DataAnnotationsValidator/>
+    
+    <div class="form-floating mb-3">
+        <input type="text" class="form-control" id="subjectinput" placeholder="Subject..." @bind="_mailModel.Subject">
+        <label for="subjectinput">Subject...</label>
+    </div>
+
+    <div class="form-floating mb-3">
+        <textarea class="form-control" id="bodyinput" placeholder="Body..." @bind="_mailModel.Body" />
+        <label for="bodyinput">Body...</label>
+    </div>
+
+    <div class="mb-3">
+        <label for="attinput">Attachtment (Optional)</label><br />
+        <InputFile id="attinput" @bind-Value="_mailModel.Attachtment" />
+    </div>
+
+    <div class="mb-3">
+        <label for="recinput">Receivers (File *.txt):</label><br />
+        <InputFile id="recinput" OnChange="@LoadReceivers" @bind-value="tempReceiversListAsFile"/>
+    </div>
+
+    <div class="mb-3">
+        <label for="htmlinput">Is body html?:</label>
+        <InputCheckbox id="htmlinput" @bind-Value="_mailModel.IsHTML" />
+    </div>
+
+    <button class="btn btn-warning" type="reset">Reset</button>
+    <button class="btn btn-success" type="submit">Submit</button>
+
+</EditForm>
+
+<br />
+
+@if (IsSending & ReceiversList.Count > 0)
+{
+    <label>Progress:</label><br />
+
+    <div class="progress">
+                    <div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: @((ActualEmail * 100)/ReceiversList.Count)%" aria-valuenow="@ActualEmail" aria-valuemin="1" aria-valuemax="@ReceiversList.Count">@ActualEmail / @ReceiversList.Count</div>
+    </div>
+}
+
+<div>
+    <br />
+    <span class="" style="color:green">@_state.Success</span>
+    <span class="" style="color:yellow">@_state.Warning</span>
+    <span class="" style="color:red">@_state.Error</span>
+</div>
+
+<br /><br />
+
+<div style="display:flex; flex-direction:row; align-content:center; justify-content:center; margin-bottom:30px;">
+    @if (ReceiversList.Count > 0)
+    {
+        <div style="padding:10px; border: 1px solid #000">
+            <h2>All Emails:</h2>
+
+            @foreach (var item in ReceiversList)
+            {
+                    <p>@item</p>
+            }
+        </div>
+    }
+
+    @if (BadReceivers.Count > 0)
+    {
+        <div style="padding:10px; margin-left:50px; border: 1px solid #000">
+            <h2>Invalid Emails:</h2>
+
+            @foreach (var item in BadReceivers)
+            {
+                    <p>@item</p>
+            }
+        </div>
+    }
+</div>
