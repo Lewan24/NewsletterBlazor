@@ -46,12 +46,14 @@
 
 </EditForm>
 
-@if (IsSending)
+<br />
+
+@if (IsSending & ReceiversList.Count > 0)
 {
     <label>Progress:</label><br />
 
     <div class="progress">
-         <div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: @((ActualEmail * _mailModel.Receivers.Count)/100)%" aria-valuenow="@ActualEmail" aria-valuemin="1" aria-valuemax="@_mailModel.Receivers.Count">@ActualEmail / @_mailModel.Receivers.Count</div>
+                    <div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: @((ActualEmail * 100)/ReceiversList.Count)%" aria-valuenow="@ActualEmail" aria-valuemin="1" aria-valuemax="@ReceiversList.Count">@ActualEmail / @ReceiversList.Count</div>
     </div>
 }
 
@@ -62,12 +64,30 @@
     <span class="" style="color:red">@_state.Error</span>
 </div>
 
-@if (_mailModel.Receivers.Count > 0)
-{
-    <h2>Invalid Emails:</h2>
+<br /><br />
 
-    @foreach (var item in BadReceivers)
+<div style="display:flex; flex-direction:row; align-content:center; justify-content:center; margin-bottom:30px;">
+    @if (ReceiversList.Count > 0)
     {
-            <p>@item</p>
+        <div style="padding:10px; border: 1px solid #000">
+            <h2>All Emails:</h2>
+
+            @foreach (var item in ReceiversList)
+            {
+                    <p>@item</p>
+            }
+        </div>
     }
-}
+
+    @if (BadReceivers.Count > 0)
+    {
+        <div style="padding:10px; margin-left:50px; border: 1px solid #000">
+            <h2>Invalid Emails:</h2>
+
+            @foreach (var item in BadReceivers)
+            {
+                    <p>@item</p>
+            }
+        </div>
+    }
+</div>
