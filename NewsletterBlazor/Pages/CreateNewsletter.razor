@@ -8,6 +8,7 @@
 @inject ApplicationDbContext _context
 @inject ILogger<CreateNewsletter> _logger
 @inject IConfiguration _configuration
+@inject AuthenticationStateProvider _AuthenticationStateProvider
 
 <h2>Create new news</h2>
 
@@ -45,6 +46,15 @@
 
 </EditForm>
 
+@if (IsSending)
+{
+    <label>Progress:</label><br />
+
+    <div class="progress">
+         <div class="progress-bar progress-bar-striped bg-danger" role="progressbar" style="width: @((ActualEmail * _mailModel.Receivers.Count)/100)%" aria-valuenow="@ActualEmail" aria-valuemin="1" aria-valuemax="@_mailModel.Receivers.Count">@ActualEmail / @_mailModel.Receivers.Count</div>
+    </div>
+}
+
 <div>
     <br />
     <span class="" style="color:green">@_state.Success</span>
@@ -52,11 +62,11 @@
     <span class="" style="color:red">@_state.Error</span>
 </div>
 
-@if (_mailModel.Receivers.Count == 0){
-    <p>Waiting for receivers...</p>
-}
-else{
-    @foreach (var item in _mailModel.Receivers)
+@if (_mailModel.Receivers.Count > 0)
+{
+    <h2>Invalid Emails:</h2>
+
+    @foreach (var item in BadReceivers)
     {
             <p>@item</p>
     }
