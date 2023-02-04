@@ -1,0 +1,149 @@
+﻿@page "/Administration"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using NewsletterBlazor.Data
+
+@inject UserManager<IdentityUser> _UserManager
+@inject AuthenticationStateProvider _AuthenticationStateProvider
+@inject IConfiguration _config
+
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        @if(pagination.IsReadyToWork)
+        {
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <li class="page-item @pagination.IsPreviousDisabledString">
+                        <a class="page-link" @onclick="() => pagination.ChangeSelectedPage(pagination.SelectedPage-1, UsersList)">Poprzednia</a>
+                    </li>
+
+                    @foreach(var link in pagination.Links)
+                    {
+                        <li class="page-item @link.IsActiveString">
+                            <a class="page-link" @onclick="() => pagination.ChangeSelectedPage(link.ID, UsersList)">@(link.ID+1)</a>
+                        </li>
+                    }
+
+                    <li class="page-item @pagination.IsNextDisabledString" >
+                        <a class= "page-link" @onclick="() => pagination.ChangeSelectedPage(pagination.SelectedPage+1, UsersList)">Następna</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+
+        <div class="form-group">
+            <input class="form-control" type="text" placeholder="Szukaj po emailu..." @bind="Filter" @bind:event="oninput" />
+        </div>
+
+        @if(UsersList.Count != 0)
+        {
+            <table class="table table-bordered">
+                <thead class="thead bg-black bg-gradient text-white">
+                    <tr>
+                        <th>Id</th>
+                        <th>Email</th>
+                        <th>Is Confirmed</th>
+                        <th>Opcje</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @foreach (var user in (string.IsNullOrEmpty(Filter) ? pagination.ActualPageUsers : UsersList))
+                    {
+                        if (!IsVisible(user))
+                            continue;
+
+                        <tr class="hovertr">
+                            <td>@user.Id.Substring(0, 5) ...</td>
+                            <td>@user.Email</td>
+                            <td>
+                                @if (user.EmailConfirmed)
+                                {
+                                    <input class="form-check-input" type="checkbox" disabled checked>
+                                }
+                                else
+                                {
+                                    <input class="form-check-input" type="checkbox" @onchange="() => ConfirmEmail(user.Id)">
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-dark btn-outline-info" @onclick="() => EditUser(user)">
+                                    Edit
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else{
+            <p>Loading users...</p>
+        }
+
+        @if (ShowPopup)
+        {
+            <!-- This is the popup to create or edit a user -->
+            <div class="modal" tabindex="-1" style="display:block" role="dialog">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Edit User</h3>
+
+                            <button type="button" class="btn-close" aria-label="Close" @onclick="ClosePopup"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            @if (SelectedUser.Id != "")
+                            {
+                                <p>@SelectedUser.Id</p>
+                            }
+
+                            @if (SelectedUser.Id != "")
+                            {
+                                <p>@SelectedUser.UserName</p>
+                            }
+                            else
+                            {
+                                <input class="form-control" type="text" placeholder="UserName" @bind="SelectedUser.UserName" />
+                            }
+
+                            <input class="form-control" type="text" placeholder="Email" @bind="SelectedUser.Email" />
+                            <input class="form-control" type="password" placeholder="Password" @bind="SelectedUser.PasswordHash" />
+                            <select class="form-control" @bind="@CurrentUserRole">
+                                @foreach (var option in Options)
+                                {
+                                    <option value="@option">
+                                        @option
+                                    </option>
+                                }
+                            </select>
+
+                            <br /><br />
+
+                            <button class="btn btn-primary" @onclick="SaveUser"> Save </button>
+
+                            @if (SelectedUser.Id != "")
+                            {
+                                <button class="btn btn-danger" @onclick="DeleteUser"> Delete </button>
+                            }
+                            <br /><br />
+
+                            <button class="btn btn-primary" @onclick="AddRole"> Add role </button>
+                            <button class="btn btn-danger" @onclick="RemoveRole"> Remove role </button>
+                            <button class="btn btn-info" @onclick="CheckRoles"> Check roles </button><br /><br />
+
+                            <span style="color:green">@success</span>
+                            <span style="color:red">@strError</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <p>You don't have permissions to see this page.</p>
+        <p>If you're Admin, relogin after getting permissions.</p>
+    </NotAuthorized>
+</AuthorizeView>

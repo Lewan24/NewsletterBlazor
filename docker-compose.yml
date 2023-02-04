@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: toor
-      POSTGRES_DB: chat
+      POSTGRES_DB: newsletter
     ports:
       - "5432:5432/tcp"
     networks:

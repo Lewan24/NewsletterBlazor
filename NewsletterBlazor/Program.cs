@@ -3,9 +3,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NewsletterBlazor.Areas.Identity;
 using NewsletterBlazor.Data;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
+   
+builder.Configuration.AddJsonFile("appsettings.json");
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
