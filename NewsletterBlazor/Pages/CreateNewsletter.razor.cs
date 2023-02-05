@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.JSInterop;
 using NewsletterBlazor.Data.Entities;
-using NuGet.Protocol.Plugins;
 using System.Net;
 using System.Net.Mail;
-using System.Text.RegularExpressions;
 
 namespace NewsletterBlazor.Pages;
 
@@ -51,6 +49,12 @@ partial class CreateNewsletter
         };
     }
 
+    protected async override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await _js.InvokeVoidAsync("expandTextarea", "expandingTextArea");
+    }
+    
     private async Task LoadReceivers(InputFileChangeEventArgs e)
     {
         ReceiversList.Clear();

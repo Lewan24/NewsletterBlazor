@@ -68,3 +68,8 @@ a, .btn-link {
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
+
+textarea {
+    min-height: 16px !important;
+    line-height: 16px !important;
+}
