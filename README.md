@@ -17,8 +17,8 @@ Example:
     "Server": "server-link",
     "Port": "587",
     "Email": "sender",
-    "Password": "1234abcd"
-	"EmailName": "Name of sender like no-reply"
+    "Password": "1234abcd",
+    "EmailName": "Name of sender like no-reply"
   },
   "Administration": {
     "Admin": "admin's email"

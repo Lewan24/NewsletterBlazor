@@ -54,7 +54,7 @@ partial class CreateNewsletter
         if (firstRender)
             await _js.InvokeVoidAsync("expandTextarea", "expandingTextArea");
     }
-
+    
     private async Task LoadReceivers(InputFileChangeEventArgs e)
     {
         ReceiversList.Clear();
