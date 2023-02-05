@@ -9,6 +9,7 @@
 @inject ILogger<CreateNewsletter> _logger
 @inject IConfiguration _configuration
 @inject AuthenticationStateProvider _AuthenticationStateProvider
+@inject IJSRuntime _js
 
 <h2>Create new news</h2>
 
@@ -17,25 +18,25 @@
     <DataAnnotationsValidator/>
     
     <div class="form-floating mb-3">
-        <input type="text" class="form-control" id="subjectinput" placeholder="Subject..." @bind="_mailModel.Subject">
+        <input type="text" class="form-control" spellcheck="false" id="subjectinput" placeholder="Subject..." @bind="_mailModel.Subject">
         <label for="subjectinput">Subject...</label>
     </div>
 
     <div class="form-floating mb-3">
-        <textarea class="form-control" id="bodyinput" placeholder="Body..." @bind="_mailModel.Body" />
-        <label for="bodyinput">Body...</label>
+        <textarea class="form-control" spellcheck="false" id="expandingTextArea" placeholder="Body..." @bind="_mailModel.Body" />
+        <label for="expandingTextArea">Body...</label>
     </div>
-
+    <br />
     <div class="mb-3">
         <label for="attinput">Attachtment (Optional)</label><br />
         <InputFile id="attinput" @bind-Value="_mailModel.Attachtment" />
     </div>
-
+    <br />
     <div class="mb-3">
         <label for="recinput">Receivers (File *.txt):</label><br />
         <InputFile id="recinput" OnChange="@LoadReceivers" @bind-value="tempReceiversListAsFile"/>
     </div>
-
+    <br />
     <div class="mb-3">
         <label for="htmlinput">Is body html?:</label>
         <InputCheckbox id="htmlinput" @bind-Value="_mailModel.IsHTML" />
@@ -72,9 +73,20 @@
         <div style="padding:10px; border: 1px solid #000">
             <h2>All Emails:</h2>
 
-            @foreach (var item in ReceiversList)
+            @if(ReceiversList.Count <= 5)
             {
+                @foreach (var item in ReceiversList)
+                {
                     <p>@item</p>
+                }
+            }
+            else
+            {
+                @for (int i = 0; i < 5; i++)
+                {
+                    <p>@ReceiversList[i]</p>
+                }
+                <p>... @(ReceiversList.Count-5) more</p>
             }
         </div>
     }
