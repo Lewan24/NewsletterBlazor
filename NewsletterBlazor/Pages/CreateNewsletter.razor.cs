@@ -8,13 +8,25 @@ namespace NewsletterBlazor.Pages;
 
 #nullable disable warnings
 
+public record State
+{
+    public string Success { get; set; } = "";
+    public string Warning { get; set; } = "";
+    public string Error { get; set; } = "";
+
+    public void Clear()
+    {
+        Success = ""; Warning = ""; Error = "";
+    }
+}
+
 partial class CreateNewsletter
 {
     private ServerConfig _serverConfig;
     private State _state = new();
 
     private MailModel _mailModel = new();
-    private IBrowserFile tempReceiversListAsFile;
+    private IBrowserFile file;
     private List<string> ReceiversList = new();
     private List<string> BadReceivers = new();
 
@@ -23,17 +35,7 @@ partial class CreateNewsletter
     private const int MaxAttemptsForSend = 3;
     private bool IsSending = false;
 
-    private class State
-    {
-        public string Success { get; set; } = "";
-        public string Warning { get; set; } = "";
-        public string Error { get; set; } = "";
-
-        public void Clear()
-        {
-            Success = ""; Warning = ""; Error = "";
-        }
-    }
+    
 
     protected override void OnInitialized()
     {
@@ -49,19 +51,12 @@ partial class CreateNewsletter
         };
     }
 
-    protected async override Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-            await _js.InvokeVoidAsync("expandTextarea", "expandingTextArea");
-    }
-    
-    private async Task LoadReceivers(InputFileChangeEventArgs e)
+    private async Task LoadReceivers()
     {
         ReceiversList.Clear();
 
         try
         {
-            var file = e.File;
             using (var streamReader = new StreamReader(file.OpenReadStream()))
             {
                 var content = await streamReader.ReadToEndAsync();

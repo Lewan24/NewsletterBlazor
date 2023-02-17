@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NewsletterBlazor.Areas.Identity;
 using NewsletterBlazor.Data;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
    
@@ -28,6 +29,9 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequiredLength = 6;
     options.Password.RequiredUniqueChars = 1;
 });
+
+builder.Services.AddMudServices();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

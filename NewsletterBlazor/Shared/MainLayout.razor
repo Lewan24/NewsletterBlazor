@@ -2,19 +2,52 @@
 
 <PageTitle>NewsletterBlazor</PageTitle>
 
-<div class="page">
-    <div class="sidebar">
+<MudThemeProvider IsDarkMode="@_isDarkMode" Theme="@_currentTheme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar>
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="ToggleMenu" />
+        Menu
+        
+        <MudSpacer />
+        
+        <LoginDisplay />
+        <MudMenu Icon="@Icons.Material.Filled.MoreVert" IconColor="Color.Inherit">
+            <MudMenuItem>
+                <MudSwitch Class="my-2" @bind-Checked="@_isDarkMode" T="bool" >Toggle Dark Mode</MudSwitch>
+            </MudMenuItem>
+        </MudMenu>
+    </MudAppBar>
+    
+    <MudDrawer Open="@_isDrawerOpen">
         <NavMenu />
-    </div>
+    </MudDrawer>
 
-    <main>
-        <div class="top-row px-4 auth">
-            <LoginDisplay />
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <MudMainContent>
+        <MudContainer Class="pa-4 d-flex flex-column justify-center" MaxWidth="MaxWidth.Large">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code
+{
+    private bool _isDrawerOpen;
+    private bool _isDarkMode = true;
+
+    private readonly MudTheme _currentTheme = new()
+    {
+        Typography = new Typography()
+        {
+            Default = new Default()
+            {
+                    FontFamily = new[] { "Bitter", "'Comic Sans'", "sans-serif", "Arial" }
+            }
+        }
+    };
+
+
+    private void ToggleMenu() => _isDrawerOpen = !_isDrawerOpen;
+}
