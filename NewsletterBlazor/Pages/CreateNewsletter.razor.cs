@@ -27,7 +27,6 @@ partial class CreateNewsletter
     private State _state = new();
 
     private MailModel _mailModel = new();
-    private IBrowserFile _receiversFile;
     private IList<IBrowserFile> _attachtments = new List<IBrowserFile>();
     private List<string> _receiversList = new();
     private List<string> _badReceivers = new();
@@ -59,13 +58,13 @@ partial class CreateNewsletter
         StateHasChanged();
     }
 
-    private async Task LoadReceivers()
+    private async Task LoadReceivers(IBrowserFile file)
     {
         _receiversList.Clear();
 
         try
         {
-            using (var streamReader = new StreamReader(_receiversFile.OpenReadStream()))
+            using (var streamReader = new StreamReader(file.OpenReadStream()))
             {
                 var content = await streamReader.ReadToEndAsync();
                 _receiversList = content.Split("\r\n").ToList();

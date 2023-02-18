@@ -30,18 +30,6 @@
 
                 <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
                 
-                <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="@UploadFiles" MaximumFileCount="5">
-                    <ButtonTemplate>
-                        <MudButton HtmlTag="label"
-                                   Variant="Variant.Filled"
-                                   Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.CloudUpload"
-                                   >
-                            Attach files
-                        </MudButton>
-                    </ButtonTemplate>
-                </MudFileUpload>
-                
                 <MudText Typo="Typo.subtitle1" Align="Align.Left" Color="Color.Success">Selected files:</MudText>
                 
                 @foreach (var item in _attachtments)
@@ -65,10 +53,10 @@
             </MudCardHeader>
 
             <MudCardContent>
-                <MudFileUpload T="IBrowserFile" FilesChanged="LoadReceivers" Accept=".txt" Required="true" @bind-Value="_receiversFile">
-                    <ButtonTemplate Context="AnotherContext">
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AttachFile" HtmlTag="label">
-                            Attach Receivers
+                <MudFileUpload T="IBrowserFile">
+                    <ButtonTemplate Context="receiverFileContext">
+                        <MudButton for="@receiverFileContext" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
+                            Upload file
                         </MudButton>
                     </ButtonTemplate>
                 </MudFileUpload>
