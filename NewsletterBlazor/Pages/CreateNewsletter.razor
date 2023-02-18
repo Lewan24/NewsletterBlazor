@@ -10,7 +10,7 @@
 @inject IConfiguration _configuration
 @inject AuthenticationStateProvider _AuthenticationStateProvider
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="ma-4 pa-4">
+<MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
     <EditForm Model="@_mailModel" OnInvalidSubmit="@HandleForm">
         <MudCard Elevation="5">
             <MudCardHeader>
@@ -29,6 +29,26 @@
                 <MudTextField Class="pa-2" Label="Body" T="string" @bind-Value="@_mailModel.Body" Lines="10" Required="true" Variant="Variant.Outlined"/>
 
                 <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
+                
+                <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="@UploadFiles" MaximumFileCount="5">
+                    <ButtonTemplate>
+                        <MudButton HtmlTag="label"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   >
+                            Attach files
+                        </MudButton>
+                    </ButtonTemplate>
+                </MudFileUpload>
+                
+                <MudText Typo="Typo.subtitle1" Align="Align.Left" Color="Color.Success">Selected files:</MudText>
+                
+                @foreach (var item in _attachtments)
+                {
+                    <MudText Typo="Typo.subtitle2" Align="Align.Center">@item.Name, @item.Size</MudText>
+                }
+
             </MudCardContent>
             
             <MudCardActions>
@@ -45,9 +65,9 @@
             </MudCardHeader>
 
             <MudCardContent>
-                <MudFileUpload T="IBrowserFile" FilesChanged="LoadReceivers" Accept=".txt" Required="true" @bind-Value="file">
+                <MudFileUpload T="IBrowserFile" FilesChanged="LoadReceivers" Accept=".txt" Required="true" @bind-Value="_receiversFile">
                     <ButtonTemplate Context="AnotherContext">
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AttachFile" HtmlTag="label" for="@context">
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AttachFile" HtmlTag="label">
                             Attach Receivers
                         </MudButton>
                     </ButtonTemplate>
@@ -67,50 +87,77 @@
     <MudText Color="Color.Error" Align="Align.Center">@_state.Error</MudText>
 </MudContainer>
 
-@if (IsSending & ReceiversList.Count > 0)
+@if (IsSending & _receiversList.Count > 0)
 {
     <MudContainer MaxWidth="MaxWidth.Medium">
-        <MudProgressLinear Value="@ActualEmail" Min="1" Max="@ReceiversList.Count" Color="Color.Secondary" Rounded="true" Size="Size.Medium">
-            <MudText Typo="Typo.subtitle1">Progress: @ActualEmail / @ReceiversList.Count</MudText>
+        <MudProgressLinear Value="@ActualEmail" Min="1" Max="@_receiversList.Count" Color="Color.Secondary" Rounded="true" Size="Size.Medium">
+            <MudText Typo="Typo.subtitle1">Progress: @ActualEmail / @_receiversList.Count</MudText>
         </MudProgressLinear>
     </MudContainer>
 }
 
-<br /><br />
-
-<div style="display:flex; flex-direction:row; align-content:center; justify-content:center; margin-bottom:30px;">
-    @if (ReceiversList.Count > 0)
-    {
-        <div style="padding:10px; border: 1px solid #000">
-            <h2>All Emails:</h2>
-
-            @if(ReceiversList.Count <= 5)
-            {
-                @foreach (var item in ReceiversList)
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-5 d-flex flex-row gap-4 justify-center">
+    <MudContainer>
+        <MudCard Elevation="5">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.body1">All selected mails</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+        
+            <MudCardContent>
+                @if (_receiversList.Count > 0)
                 {
-                    <p>@item</p>
+                    @if(_receiversList.Count <= 5)
+                    {
+                        @foreach (var item in _receiversList)
+                        {
+                            <MudText Color="Color.Info" Typo="Typo.subtitle1">@item</MudText>
+                        }
+                    }
+                    else
+                    {
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            <MudText Color="Color.Info" Typo="Typo.subtitle1">@_receiversList[i]</MudText>
+                        }
+                        <MudText Color="Color.Info" Typo="Typo.subtitle1">... @(_receiversList.Count - 5) more</MudText>
+                    }
                 }
-            }
-            else
-            {
-                @for (int i = 0; i < 5; i++)
+                else
                 {
-                    <p>@ReceiversList[i]</p>
+                    <MudText Typo="Typo.subtitle1">Not selected receivers yet</MudText>
                 }
-                <p>... @(ReceiversList.Count-5) more</p>
-            }
-        </div>
-    }
+            </MudCardContent>
+        </MudCard>
+    </MudContainer>
+    
+    <MudSpacer/>
 
-    @if (BadReceivers.Count > 0)
-    {
-        <div style="padding:10px; margin-left:50px; border: 1px solid #000">
-            <h2>Invalid Emails:</h2>
-
-            @foreach (var item in BadReceivers)
-            {
-                    <p>@item</p>
-            }
-        </div>
-    }
-</div>
+    <MudContainer>
+        <MudCard Elevation="5">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.body1">Mails that throwed errors</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+        
+            <MudCardContent>
+                @if (_badReceivers.Count > 0)
+                {
+                    @foreach (var item in _badReceivers)
+                    {
+                        <MudText Color="Color.Error" Typo="Typo.subtitle1">@item</MudText>
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle1">There is not any bad email yet</MudText>
+                }
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Color="Color.Success" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Try">Try again</MudButton>
+            </MudCardActions>
+        </MudCard>
+    </MudContainer>
+</MudContainer>

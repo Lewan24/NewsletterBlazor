@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using NewsletterBlazor.Data.Entities;
 using System.Net;
 using System.Net.Mail;
+using NuGet.Packaging;
 
 namespace NewsletterBlazor.Pages;
 
@@ -26,9 +27,10 @@ partial class CreateNewsletter
     private State _state = new();
 
     private MailModel _mailModel = new();
-    private IBrowserFile file;
-    private List<string> ReceiversList = new();
-    private List<string> BadReceivers = new();
+    private IBrowserFile _receiversFile;
+    private IList<IBrowserFile> _attachtments = new List<IBrowserFile>();
+    private List<string> _receiversList = new();
+    private List<string> _badReceivers = new();
 
     private int ActualEmail = 0;
     private int SuccessfullySent = 0;
@@ -51,16 +53,22 @@ partial class CreateNewsletter
         };
     }
 
+    private void UploadFiles(IReadOnlyList<IBrowserFile> file)
+    {
+        _attachtments.AddRange(file);
+        StateHasChanged();
+    }
+
     private async Task LoadReceivers()
     {
-        ReceiversList.Clear();
+        _receiversList.Clear();
 
         try
         {
-            using (var streamReader = new StreamReader(file.OpenReadStream()))
+            using (var streamReader = new StreamReader(_receiversFile.OpenReadStream()))
             {
                 var content = await streamReader.ReadToEndAsync();
-                ReceiversList = content.Split("\r\n").ToList();
+                _receiversList = content.Split("\r\n").ToList();
 
                 _logger.LogInformation("Loaded mails");
             }
@@ -75,13 +83,13 @@ partial class CreateNewsletter
     {
         _state.Clear();
 
-        if (ReceiversList.Count == 0)
+        if (_receiversList.Count == 0)
         {
             _state.Error = "There are no Receivers";
             return;
         }
 
-        _logger.LogInformation($"Successfully read file, number of receivers: {ReceiversList.Count}");
+        _logger.LogInformation($"Successfully read file, number of receivers: {_receiversList.Count}");
 
         _logger.LogInformation("Adding message to history");
 
@@ -89,7 +97,7 @@ partial class CreateNewsletter
         {
             CreatedBy = _AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User.Identity.Name,
             UserId = Guid.Parse(_context.Users.FirstOrDefault(u => u.UserName == _AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User.Identity.Name).Id),
-            HowManyEmailsSent = ReceiversList.Count,
+            HowManyEmailsSent = _receiversList.Count,
             SubjectOfEmail = _mailModel.Subject,
             BodyOfEmail = _mailModel.Body
         });
@@ -115,7 +123,7 @@ partial class CreateNewsletter
         IsSending = true;
         await InvokeAsync(StateHasChanged);
 
-        foreach (var receiver in ReceiversList)
+        foreach (var receiver in _receiversList)
         {
             attempt = 1;
 
@@ -135,14 +143,14 @@ partial class CreateNewsletter
             }
 
             if (attempt > MaxAttemptsForSend)
-                BadReceivers.Add(receiver);
+                _badReceivers.Add(receiver);
         }
 
-        _state.Success = $"Successfully sent {SuccessfullySent}/{ReceiversList.Count} emails";
+        _state.Success = $"Successfully sent {SuccessfullySent}/{_receiversList.Count} emails";
         IsSending = false;
         await InvokeAsync(StateHasChanged);
 
-        ReceiversList.Clear();
+        _receiversList.Clear();
         _mailModel = new();
     }
 
