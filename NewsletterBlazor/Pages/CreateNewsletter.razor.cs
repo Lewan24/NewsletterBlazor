@@ -134,6 +134,7 @@ partial class CreateNewsletter
                     var tempFilePath = Path.Combine(Path.GetTempPath(), attachfile.Name);
                     using (var stream = new FileStream(tempFilePath, FileMode.Create))
                     {
+                        //TODO: In some reason it doesnt copying the content of the file, so the final temp file is just empty
                         attachfile.OpenReadStream().CopyToAsync(stream);
                     }
                     _mailModel.TempAttachFiles.Add(new(tempFilePath, attachfile.Name, attachfile.ContentType));
