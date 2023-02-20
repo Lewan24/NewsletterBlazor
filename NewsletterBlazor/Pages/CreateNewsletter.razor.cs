@@ -27,7 +27,7 @@ partial class CreateNewsletter
     private State _state = new();
 
     private MailModel _mailModel = new();
-    private IList<IBrowserFile> _attachtments = new List<IBrowserFile>();
+    
     private List<string> _receiversList = new();
     private List<string> _badReceivers = new();
 
@@ -35,8 +35,7 @@ partial class CreateNewsletter
     private int SuccessfullySent = 0;
     private const int MaxAttemptsForSend = 3;
     private bool IsSending = false;
-
-    
+    private bool IsLoadingFiles = false;
 
     protected override void OnInitialized()
     {
@@ -52,19 +51,23 @@ partial class CreateNewsletter
         };
     }
 
-    private void UploadFiles(IReadOnlyList<IBrowserFile> file)
+    private void AddAttachtment(InputFileChangeEventArgs args)
     {
-        _attachtments.AddRange(file);
-        StateHasChanged();
+        _mailModel.Attachtments.Add(args.File);
     }
 
-    private async Task LoadReceivers(IBrowserFile file)
+    private void RemoveAttachtment(string filename)
+    {
+        _mailModel.Attachtments.Remove(_mailModel.Attachtments.FirstOrDefault(f => f.Name == filename));
+    }
+
+    private async Task LoadReceivers(InputFileChangeEventArgs args)
     {
         _receiversList.Clear();
 
         try
         {
-            using (var streamReader = new StreamReader(file.OpenReadStream()))
+            using (var streamReader = new StreamReader(args.File.OpenReadStream()))
             {
                 var content = await streamReader.ReadToEndAsync();
                 _receiversList = content.Split("\r\n").ToList();
@@ -87,6 +90,9 @@ partial class CreateNewsletter
             _state.Error = "There are no Receivers";
             return;
         }
+
+        IsLoadingFiles = true;
+        StateHasChanged();
 
         _logger.LogInformation($"Successfully read file, number of receivers: {_receiversList.Count}");
 
@@ -119,8 +125,41 @@ partial class CreateNewsletter
 
         int attempt = 1;
 
+        var isSuccessfullyCreatedTempFiles = Task.Run(() =>
+        {
+            try
+            {
+                foreach (var attachfile in _mailModel.Attachtments)
+                {
+                    var tempFilePath = Path.Combine(Path.GetTempPath(), attachfile.Name);
+                    using (var stream = new FileStream(tempFilePath, FileMode.Create))
+                    {
+                        attachfile.OpenReadStream().CopyToAsync(stream);
+                    }
+                    _mailModel.TempAttachFiles.Add(new(tempFilePath, attachfile.Name, attachfile.ContentType));
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Problem with file: {e.Message}, Base ex: {e.GetBaseException().Message}");
+                return false;
+            }
+        });
+
+        IsLoadingFiles = false;
         IsSending = true;
         await InvokeAsync(StateHasChanged);
+
+        if (!await isSuccessfullyCreatedTempFiles)
+        {
+            IsSending = false;
+            _state.Error = "Files are incorrect, edited, or too big (Max is 512kb)";
+            //await Task.Run(DeleteTempFiles);
+            StateHasChanged();
+            return;
+        }
 
         foreach (var receiver in _receiversList)
         {
@@ -145,12 +184,22 @@ partial class CreateNewsletter
                 _badReceivers.Add(receiver);
         }
 
+        //await Task.Run(DeleteTempFiles);
+
         _state.Success = $"Successfully sent {SuccessfullySent}/{_receiversList.Count} emails";
         IsSending = false;
         await InvokeAsync(StateHasChanged);
 
         _receiversList.Clear();
         _mailModel = new();
+    }
+
+    private void DeleteTempFiles()
+    {
+        foreach (var tempFile in _mailModel.TempAttachFiles)
+        {
+            File.Delete(tempFile.FilePath);
+        }
     }
 
     private async Task<bool> TrySendMailAsync(string receiver, SmtpClient client)
@@ -168,8 +217,13 @@ partial class CreateNewsletter
                 mail.IsBodyHtml = _mailModel.IsHTML;
                 mail.From = new MailAddress(_serverConfig.EmailSender, _serverConfig.EmailName);
                 mail.Sender = new MailAddress(_serverConfig.EmailSender);
-
                 mail.ReplyToList.Add(currentUser);
+
+                foreach (var file in _mailModel.TempAttachFiles)
+                {
+                    var attachmentData = new Attachment(file.FilePath, file.FileContentType);
+                    mail.Attachments.Add(attachmentData);
+                }
 
                 _logger.LogInformation($"Sending to: {receiver}");
 
@@ -180,7 +234,7 @@ partial class CreateNewsletter
         }
         catch (Exception ex)
         {
-            _logger.LogWarning($"Error while sending email: {ex.Message}");
+            _logger.LogWarning($"Error while sending email: {ex.Message}, Base Message: {ex.GetBaseException().Message}");
 
             return false;
         }

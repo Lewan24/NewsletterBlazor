@@ -11,7 +11,7 @@
 @inject AuthenticationStateProvider _AuthenticationStateProvider
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="pa-4">
-    <EditForm Model="@_mailModel" OnInvalidSubmit="@HandleForm">
+    <EditForm Model="@_mailModel" OnValidSubmit="@HandleForm">
         <MudCard Elevation="5">
             <MudCardHeader>
                 <CardHeaderContent>
@@ -30,11 +30,23 @@
 
                 <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
                 
-                <MudText Typo="Typo.subtitle1" Align="Align.Left" Color="Color.Success">Selected files:</MudText>
-                
-                @foreach (var item in _attachtments)
+                <MudFileUpload id="AttachmentsFilesChanging" T="IBrowserFile" OnFilesChanged="AddAttachtment">
+                    <ButtonTemplate Context="AttachmentsFilesChanging">
+                        <MudButton HtmlTag="label" for="AttachmentsFilesChanging" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
+                            Add file
+                        </MudButton>
+                        <MudText Typo="Typo.body1">(max final count = 5)</MudText>
+                    </ButtonTemplate>
+                </MudFileUpload>
+
+                @if (_mailModel.Attachtments.Count > 0)
                 {
-                    <MudText Typo="Typo.subtitle2" Align="Align.Center">@item.Name, @item.Size</MudText>
+                    <MudText Typo="Typo.subtitle1" Align="Align.Left" Color="Color.Success">Selected files:</MudText>
+
+                    @foreach (var item in _mailModel.Attachtments)
+                    {
+                        <MudText Typo="Typo.subtitle2" Align="Align.Left">@item.Name, @item.Size b - <MudIconButton StartIcon="@Icons.Material.Filled.Remove" Color="Color.Primary" Variant="Variant.Text" OnClick="@(() => RemoveAttachtment(item.Name))">Remove</MudIconButton></MudText>
+                    }
                 }
 
             </MudCardContent>
@@ -53,10 +65,10 @@
             </MudCardHeader>
 
             <MudCardContent>
-                <MudFileUpload T="IBrowserFile">
-                    <ButtonTemplate Context="receiverFileContext">
-                        <MudButton for="@receiverFileContext" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
-                            Upload file
+                <MudFileUpload id="ReceiversFileChanging" T="IBrowserFile" Required="true" Accept=".txt" OnFilesChanged="LoadReceivers">
+                    <ButtonTemplate Context="ReceiversFileChanging">
+                        <MudButton HtmlTag="label" for="ReceiversFileChanging" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
+                            Set receivers list
                         </MudButton>
                     </ButtonTemplate>
                 </MudFileUpload>
@@ -74,6 +86,14 @@
     <MudText Color="Color.Warning" Align="Align.Center">@_state.Warning</MudText>
     <MudText Color="Color.Error" Align="Align.Center">@_state.Error</MudText>
 </MudContainer>
+
+@if (IsLoadingFiles)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex flex-row align-center justify-center my-5">
+        <MudProgressCircular Indeterminate="true" Size="Size.Medium" Color="Color.Secondary"/>
+        <MudText Typo="Typo.body1" Color="Color.Info"Class="ml-5">Loading Attachments and message settings...</MudText>
+    </MudContainer>
+}
 
 @if (IsSending & _receiversList.Count > 0)
 {
@@ -105,9 +125,9 @@
                     }
                     else
                     {
-                        @for (int i = 0; i < 5; i++)
+                        @foreach (var item in _receiversList.GetRange(0,5))
                         {
-                            <MudText Color="Color.Info" Typo="Typo.subtitle1">@_receiversList[i]</MudText>
+                            <MudText Color="Color.Info" Typo="Typo.subtitle1">@item</MudText>
                         }
                         <MudText Color="Color.Info" Typo="Typo.subtitle1">... @(_receiversList.Count - 5) more</MudText>
                     }
