@@ -24,7 +24,8 @@ public record State
 partial class CreateNewsletter
 {
     private ServerConfig _serverConfig;
-    private State _state = new();
+    private State _applicationState = new();
+    private State _attachmentsState = new();
 
     private MailModel _mailModel = new();
     
@@ -39,7 +40,7 @@ partial class CreateNewsletter
 
     protected override void OnInitialized()
     {
-        _state.Clear();
+        _applicationState.Clear();
 
         _serverConfig = new()
         {
@@ -51,14 +52,44 @@ partial class CreateNewsletter
         };
     }
 
-    private void AddAttachtment(InputFileChangeEventArgs args)
+    private async Task AddAttachtment(InputFileChangeEventArgs args)
     {
+        _attachmentsState.Clear();
+
+        if (_mailModel.Attachtments.Count >= 5)
+        {
+            _attachmentsState.Warning = "There can be only 5 attachments in mail";
+            StateHasChanged();
+            return;
+        }
+
+        _logger.LogWarning($"Adding attachment: {args.File}\nInfo: {args.File.Name}, {args.File.Size}");
         _mailModel.Attachtments.Add(args.File);
+        
+        try
+        {
+            _logger.LogInformation("Creating copy of uploaded file...");
+            var path = Path.Combine(Path.GetTempPath(), args.File.Name);
+            _logger.LogWarning($"IBrowserFile: {args.File.Name}, {args.File.ContentType}, {args.File.Size}\nTemp path: {path}");
+
+            await using var fs = new FileStream(path, FileMode.Create);
+
+            _logger.LogInformation("Reading and copying item...");
+            await args.File.OpenReadStream().CopyToAsync(fs);
+            _mailModel.TempAttachFiles.Add(new(path, args.File.Name, args.File.ContentType, args.File.Size));
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Problem with file: {e.Message}, Base ex: {e.GetBaseException().Message}");
+        }
     }
 
-    private void RemoveAttachtment(string filename)
+    private void RemoveAttachtment(string filename, long size)
     {
-        _mailModel.Attachtments.Remove(_mailModel.Attachtments.FirstOrDefault(f => f.Name == filename));
+        _attachmentsState.Clear();
+        File.Delete(_mailModel.TempAttachFiles.FirstOrDefault(f => f.FileName == filename && f.FileSize == size).FilePath);
+        _mailModel.Attachtments.Remove(_mailModel.Attachtments.FirstOrDefault(f => f.Name == filename && f.Size == size));
+        _mailModel.TempAttachFiles.Remove(_mailModel.TempAttachFiles.FirstOrDefault(f => f.FileName == filename && f.FileSize == size));
     }
 
     private async Task LoadReceivers(InputFileChangeEventArgs args)
@@ -83,15 +114,16 @@ partial class CreateNewsletter
 
     private async Task HandleForm()
     {
-        _state.Clear();
+        _badReceivers.Clear();
+        _applicationState.Clear();
+        _attachmentsState.Clear();
 
         if (_receiversList.Count == 0)
         {
-            _state.Error = "There are no Receivers";
+            _applicationState.Error = "There are no Receivers";
             return;
         }
-
-        IsLoadingFiles = true;
+        
         StateHasChanged();
 
         _logger.LogInformation($"Successfully read file, number of receivers: {_receiversList.Count}");
@@ -125,42 +157,8 @@ partial class CreateNewsletter
 
         int attempt = 1;
 
-        var isSuccessfullyCreatedTempFiles = Task.Run(() =>
-        {
-            try
-            {
-                foreach (var attachfile in _mailModel.Attachtments)
-                {
-                    var tempFilePath = Path.Combine(Path.GetTempPath(), attachfile.Name);
-                    using (var stream = new FileStream(tempFilePath, FileMode.Create))
-                    {
-                        //TODO: In some reason it doesnt copying the content of the file, so the final temp file is just empty
-                        attachfile.OpenReadStream().CopyToAsync(stream);
-                    }
-                    _mailModel.TempAttachFiles.Add(new(tempFilePath, attachfile.Name, attachfile.ContentType));
-                }
-
-                return true;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError($"Problem with file: {e.Message}, Base ex: {e.GetBaseException().Message}");
-                return false;
-            }
-        });
-
-        IsLoadingFiles = false;
         IsSending = true;
         await InvokeAsync(StateHasChanged);
-
-        if (!await isSuccessfullyCreatedTempFiles)
-        {
-            IsSending = false;
-            _state.Error = "Files are incorrect, edited, or too big (Max is 512kb)";
-            //await Task.Run(DeleteTempFiles);
-            StateHasChanged();
-            return;
-        }
 
         foreach (var receiver in _receiversList)
         {
@@ -185,20 +183,23 @@ partial class CreateNewsletter
                 _badReceivers.Add(receiver);
         }
 
-        //await Task.Run(DeleteTempFiles);
+        await Task.Run(DeleteTempFiles);
 
-        _state.Success = $"Successfully sent {SuccessfullySent}/{_receiversList.Count} emails";
+        _applicationState.Success = $"Successfully sent {SuccessfullySent}/{_receiversList.Count} emails";
         IsSending = false;
         await InvokeAsync(StateHasChanged);
 
         _receiversList.Clear();
-        _mailModel = new();
+
+        if (_badReceivers.Count == 0)
+            _mailModel = new();
     }
 
     private void DeleteTempFiles()
     {
         foreach (var tempFile in _mailModel.TempAttachFiles)
         {
+            _logger.LogInformation($"Deleting: {tempFile.FileName}, {tempFile.FilePath}");
             File.Delete(tempFile.FilePath);
         }
     }
@@ -222,7 +223,7 @@ partial class CreateNewsletter
 
                 foreach (var file in _mailModel.TempAttachFiles)
                 {
-                    var attachmentData = new Attachment(file.FilePath, file.FileContentType);
+                    var attachmentData = new Attachment(file.FilePath);
                     mail.Attachments.Add(attachmentData);
                 }
 
@@ -239,5 +240,17 @@ partial class CreateNewsletter
 
             return false;
         }
+    }
+
+    private async Task SendMailAgainToBadEmails()
+    {
+        _receiversList.AddRange(_badReceivers);
+        StateHasChanged();
+        _badReceivers.Clear();
+
+        _applicationState.Warning = "In 1 sec system will try to send emails again...";
+        await Task.Delay(1000);
+
+        await HandleForm();
     }
 }

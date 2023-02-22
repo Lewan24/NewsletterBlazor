@@ -28,16 +28,20 @@
 
                 <MudTextField Class="pa-2" Label="Body" T="string" @bind-Value="@_mailModel.Body" Lines="10" Required="true" Variant="Variant.Outlined"/>
 
-                <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
-                
+                <MudTooltip Text="This options requires html formatting in body like <br> or <h1> if needed">
+                    <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
+                </MudTooltip>                
+
                 <MudFileUpload id="AttachmentsFilesChanging" T="IBrowserFile" OnFilesChanged="AddAttachtment">
                     <ButtonTemplate Context="AttachmentsFilesChanging">
                         <MudButton HtmlTag="label" for="AttachmentsFilesChanging" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
                             Add file
                         </MudButton>
-                        <MudText Typo="Typo.body1">(max final count = 5)</MudText>
+                        <MudText Typo="Typo.body1">`max 5 files`</MudText>
                     </ButtonTemplate>
                 </MudFileUpload>
+                
+                <br />
 
                 @if (_mailModel.Attachtments.Count > 0)
                 {
@@ -45,7 +49,12 @@
 
                     @foreach (var item in _mailModel.Attachtments)
                     {
-                        <MudText Typo="Typo.subtitle2" Align="Align.Left">@item.Name, @item.Size b - <MudIconButton StartIcon="@Icons.Material.Filled.Remove" Color="Color.Primary" Variant="Variant.Text" OnClick="@(() => RemoveAttachtment(item.Name))">Remove</MudIconButton></MudText>
+                        <MudText Typo="Typo.subtitle2" Align="Align.Left">@item.Name, @item.Size b - <MudIconButton StartIcon="@Icons.Material.Filled.Remove" Color="Color.Primary" Variant="Variant.Text" OnClick="@(() => RemoveAttachtment(item.Name, item.Size))">Remove</MudIconButton></MudText>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_attachmentsState.Warning))
+                    {
+                        <MudText Typo="Typo.body1" Color="Color.Warning">@_attachmentsState.Warning</MudText>
                     }
                 }
 
@@ -65,7 +74,7 @@
             </MudCardHeader>
 
             <MudCardContent>
-                <MudFileUpload id="ReceiversFileChanging" T="IBrowserFile" Required="true" Accept=".txt" OnFilesChanged="LoadReceivers">
+                <MudFileUpload id="ReceiversFileChanging" T="IBrowserFile" Accept=".txt" OnFilesChanged="LoadReceivers">
                     <ButtonTemplate Context="ReceiversFileChanging">
                         <MudButton HtmlTag="label" for="ReceiversFileChanging" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
                             Set receivers list
@@ -82,9 +91,9 @@
 </MudContainer>
 
 <MudContainer MaxWidth="MaxWidth.Small">
-    <MudText Color="Color.Success" Align="Align.Center">@_state.Success</MudText>
-    <MudText Color="Color.Warning" Align="Align.Center">@_state.Warning</MudText>
-    <MudText Color="Color.Error" Align="Align.Center">@_state.Error</MudText>
+    <MudText Color="Color.Success" Align="Align.Center">@_applicationState.Success</MudText>
+    <MudText Color="Color.Warning" Align="Align.Center">@_applicationState.Warning</MudText>
+    <MudText Color="Color.Error" Align="Align.Center">@_applicationState.Error</MudText>
 </MudContainer>
 
 @if (IsLoadingFiles)
@@ -164,7 +173,7 @@
                 }
             </MudCardContent>
             <MudCardActions>
-                <MudButton Color="Color.Success" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Try">Try again</MudButton>
+                <MudButton Color="Color.Success" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Try" OnClick="SendMailAgainToBadEmails" Disabled="@(_badReceivers.Count == 0 ? true : false)">Try again</MudButton>
             </MudCardActions>
         </MudCard>
     </MudContainer>

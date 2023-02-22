@@ -13,6 +13,6 @@ public record MailModel
     public string Body { get; set; } = "";
 
     public List<IBrowserFile> Attachtments { get; set; } = new();
-    public List<(string FilePath, string FileName, string FileContentType)> TempAttachFiles { get; set; } = new();
+    public List<(string FilePath, string FileName, string FileContentType, long FileSize)> TempAttachFiles { get; set; } = new();
     public bool IsHTML { get; set; } = false;
 }
