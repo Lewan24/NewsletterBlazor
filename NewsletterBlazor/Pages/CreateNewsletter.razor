@@ -19,25 +19,28 @@
                 </CardHeaderContent>
 
                 <CardHeaderActions>
-                    <MudButton ButtonType="ButtonType.Reset" StartIcon="@Icons.Material.Filled.Restore" >Reset fields</MudButton>
+                    <MudButton ButtonType="ButtonType.Reset" StartIcon="@Icons.Material.Filled.Restore" OnClick="ResetForm" >Reset mail</MudButton>
                 </CardHeaderActions>
             </MudCardHeader>
 
             <MudCardContent>
-                <MudTextField Class="pa-2" Label="Subject" T="string" @bind-Value="@_mailModel.Subject" Required="true" Variant="Variant.Outlined"/>
+                <MudTextField Label="Subject" T="string" @bind-Value="@_mailModel.Subject" Required="true" Variant="Variant.Outlined"/>
 
-                <MudTextField Class="pa-2" Label="Body" T="string" @bind-Value="@_mailModel.Body" Lines="10" Required="true" Variant="Variant.Outlined"/>
-
-                <MudTooltip Text="This options requires html formatting in body like <br> or <h1> if needed">
-                    <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
-                </MudTooltip>                
+                <MudTextField Label="Body" T="string" @bind-Value="@_mailModel.Body" Lines="10" Required="true" Variant="Variant.Outlined"/>
+                
+                <MudFileUpload id="BodyFileUpload" T="IBrowserFile" Accept=".txt,.html,.htm" OnFilesChanged="SetBodyViaFile">
+                    <ButtonTemplate Context="BodyFileUpload">
+                        <MudButton HtmlTag="label" for="BodyFileUpload" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
+                            Load body via file
+                        </MudButton>
+                    </ButtonTemplate>
+                </MudFileUpload>
 
                 <MudFileUpload id="AttachmentsFilesChanging" T="IBrowserFile" OnFilesChanged="AddAttachtment">
                     <ButtonTemplate Context="AttachmentsFilesChanging">
                         <MudButton HtmlTag="label" for="AttachmentsFilesChanging" Color="Color.Secondary" Variant="Variant.Filled" ButtonType="ButtonType.Button">
-                            Add file
+                            Attach files
                         </MudButton>
-                        <MudText Typo="Typo.body1">`max 5 files`</MudText>
                     </ButtonTemplate>
                 </MudFileUpload>
                 
@@ -57,7 +60,10 @@
                         <MudText Typo="Typo.body1" Color="Color.Warning">@_attachmentsState.Warning</MudText>
                     }
                 }
-
+                <br><br>
+                <MudTooltip Text="This options requires html formatting in body like <br> or <h1> if needed">
+                    <MudCheckBox T="bool" @bind-Checked="@_mailModel.IsHTML" Label="Is Body HTML" LabelPosition="LabelPosition.Start" Size="Size.Medium" Class="mt-4" />
+                </MudTooltip>
             </MudCardContent>
             
             <MudCardActions>

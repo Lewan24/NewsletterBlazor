@@ -52,6 +52,22 @@ partial class CreateNewsletter
         };
     }
 
+    private async Task SetBodyViaFile(InputFileChangeEventArgs args)
+    {
+        using var stream = new StreamReader(args.File.OpenReadStream());
+        _mailModel.Body = await stream.ReadToEndAsync();
+        _mailModel.IsHTML = true;
+        StateHasChanged();
+    }
+
+    private void ResetForm()
+    {
+        _mailModel = new();
+        _receiversList.Clear();
+        _badReceivers.Clear();
+        StateHasChanged();
+    }
+
     private async Task AddAttachtment(InputFileChangeEventArgs args)
     {
         _attachmentsState.Clear();

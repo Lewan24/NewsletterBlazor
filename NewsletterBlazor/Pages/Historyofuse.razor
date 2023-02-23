@@ -1,6 +1,7 @@
 ﻿@page "/Historyofuse"
 @using NewsletterBlazor.Data
 @using NewsletterBlazor.Data.Entities
+@using System.Windows
 
 @inject ApplicationDbContext _context
 @inject IDialogService DialogService
@@ -25,7 +26,16 @@
                 <MudTh>Receivers</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Id">@context.Id.ToString().Substring(0,5)...</MudTd>
+                <MudTd DataLabel="Id">
+                    <MudTooltip>
+                        <TooltipContent>
+                            <MudText>@context.Id</MudText>
+                        </TooltipContent>
+                        <ChildContent>
+                            <MudText @onclick="@(() => CopyIdToClipboard(@context.Id))" >@context.Id.ToString().Substring(0, 5)...</MudText>    
+                        </ChildContent>
+                    </MudTooltip>
+                </MudTd>
                 <MudTd DataLabel="Sent by">@context.CreatedBy</MudTd>
                 <MudTd DataLabel="Count of Receivers">@context.HowManyEmailsSent</MudTd>
                 <MudTd DataLabel="Sent time">@context.CreatedTime</MudTd>
@@ -59,5 +69,10 @@
         parameters.Add("Receivers", receivers);
 
         DialogService.Show<ReceiversListDialog>("Receivers list", parameters, options);
+    }
+
+    private void CopyIdToClipboard(Guid id)
+    {
+        System.Windows.Clipboard.SetText(id.ToString());
     }
 }
