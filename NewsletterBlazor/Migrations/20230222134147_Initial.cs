@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -9,7 +10,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace NewsletterBlazor.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -62,6 +63,7 @@ namespace NewsletterBlazor.Migrations
                     HowManyEmailsSent = table.Column<int>(type: "integer", nullable: false),
                     SubjectOfEmail = table.Column<string>(type: "text", nullable: false),
                     BodyOfEmail = table.Column<string>(type: "text", nullable: false),
+                    Receivers = table.Column<List<string>>(type: "text[]", nullable: false),
                     CreatedBy = table.Column<string>(type: "text", nullable: false),
                     CreatedTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -181,8 +183,8 @@ namespace NewsletterBlazor.Migrations
                 columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
                 values: new object[,]
                 {
-                    { "469daa65-88cd-4692-815f-5eb828f228da", "873a8c58-abbb-4c0c-9e11-15cf4abda908", "Admin", "ADMIN" },
-                    { "4af56545-4fff-4711-9287-339f79c4488e", "47327ca7-7a00-4ec1-8827-0fb1dc07f2ae", "User", "USER" }
+                    { "3a822440-0237-4f0f-84d3-9d709468a46c", "b2547ca1-a346-4265-9b9c-8d2fa1837a8e", "User", "USER" },
+                    { "69fbaefe-1a17-4129-85fd-0741111c39f6", "ed3866c6-2a3b-4000-8675-8eb984c8cb94", "Admin", "ADMIN" }
                 });
 
             migrationBuilder.CreateIndex(

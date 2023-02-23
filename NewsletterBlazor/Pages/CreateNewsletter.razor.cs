@@ -130,18 +130,26 @@ partial class CreateNewsletter
 
         _logger.LogInformation("Adding message to history");
 
-        await _context.HistoryOfUses.AddAsync(new HistoryOfUses()
+        try
         {
-            CreatedBy = _AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User.Identity.Name,
-            UserId = Guid.Parse(_context.Users.FirstOrDefault(u => u.UserName == _AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User.Identity.Name).Id),
-            HowManyEmailsSent = _receiversList.Count,
-            SubjectOfEmail = _mailModel.Subject,
-            BodyOfEmail = _mailModel.Body
-        });
+            await _context.HistoryOfUses.AddAsync(new HistoryOfUses()
+            {
+                CreatedBy = _AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User.Identity.Name,
+                UserId = Guid.Parse(_context.Users.FirstOrDefault(u => u.UserName == _AuthenticationStateProvider.GetAuthenticationStateAsync().Result.User.Identity.Name).Id),
+                HowManyEmailsSent = _receiversList.Count,
+                SubjectOfEmail = _mailModel.Subject,
+                BodyOfEmail = _mailModel.Body,
+                Receivers = _receiversList
+            });
 
-        _logger.LogInformation("Saving changes");
+            _logger.LogInformation("Saving changes");
 
-        await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            _logger.LogError($"Error while creating history: {e.Message}, Base ex: {e.GetBaseException().Message}");
+        }
 
         _logger.LogInformation("Creating smtp client...");
 

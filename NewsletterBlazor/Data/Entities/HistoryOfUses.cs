@@ -8,4 +8,5 @@ public record HistoryOfUses : Auditable
     public int HowManyEmailsSent { get; set; }
     public string SubjectOfEmail { get; set; } = null!;
     public string BodyOfEmail { get; set; } = null!;
+    public List<string> Receivers { get; set; } = null!;
 }

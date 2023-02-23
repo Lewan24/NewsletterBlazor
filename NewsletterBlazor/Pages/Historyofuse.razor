@@ -1,0 +1,63 @@
+﻿@page "/Historyofuse"
+@using NewsletterBlazor.Data
+@using NewsletterBlazor.Data.Entities
+
+@inject ApplicationDbContext _context
+@inject IDialogService DialogService
+
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>History</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    @if (_history.Count != 0)
+    {
+        <MudTable Items="@_history">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">History of uses the Newsletter</MudText>
+                <MudSpacer />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Sent by</MudTh>
+                <MudTh>Count of Receivers</MudTh>
+                <MudTh>Sent time</MudTh>
+                <MudTh>Receivers</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id.ToString().Substring(0,5)...</MudTd>
+                <MudTd DataLabel="Sent by">@context.CreatedBy</MudTd>
+                <MudTd DataLabel="Count of Receivers">@context.HowManyEmailsSent</MudTd>
+                <MudTd DataLabel="Sent time">@context.CreatedTime</MudTd>
+                <MudTd DataLabel="Receivers">
+                    <MudButton StartIcon="@Icons.Material.Filled.ViewList" OnClick="@(() => OpenDialog(@context.Receivers))">Show Receivers</MudButton>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
+    else
+    {
+        <MudText Typo="Typo.h6">Loading history...</MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<HistoryOfUses> _history = new();
+
+    protected override void OnInitialized()
+    {
+        _history = _context.HistoryOfUses.ToList();
+    }
+
+    private void OpenDialog(List<string> receivers)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+        var parameters = new DialogParameters();
+        parameters.Add("Receivers", receivers);
+
+        DialogService.Show<ReceiversListDialog>("Receivers list", parameters, options);
+    }
+}
