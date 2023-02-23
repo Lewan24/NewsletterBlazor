@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NewsletterBlazor.Areas.Identity;
 using NewsletterBlazor.Data;
 using MudBlazor.Services;
+using TextCopy;
 
 var builder = WebApplication.CreateBuilder(args);
    
@@ -31,6 +32,7 @@ builder.Services.Configure<IdentityOptions>(options =>
 });
 
 builder.Services.AddMudServices();
+builder.Services.InjectClipboard();
 
 var app = builder.Build();
 

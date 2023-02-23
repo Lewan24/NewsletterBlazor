@@ -1,57 +1,87 @@
 ﻿@page "/Historyofuse"
 @using NewsletterBlazor.Data
 @using NewsletterBlazor.Data.Entities
-@using System.Windows
+@using TextCopy
 
 @inject ApplicationDbContext _context
 @inject IDialogService DialogService
+@inject ISnackbar SnackBar
+@inject IClipboard Clipboard
 
 @attribute [Authorize(Roles = "Admin")]
 
 <PageTitle>History</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large">
-    @if (_history.Count != 0)
-    {
-        <MudTable Items="@_history">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">History of uses the Newsletter</MudText>
-                <MudSpacer />
-            </ToolBarContent>
-            <HeaderContent>
-                <MudTh>Id</MudTh>
-                <MudTh>Sent by</MudTh>
-                <MudTh>Count of Receivers</MudTh>
-                <MudTh>Sent time</MudTh>
-                <MudTh>Receivers</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Id">
-                    <MudTooltip>
-                        <TooltipContent>
-                            <MudText>@context.Id</MudText>
-                        </TooltipContent>
-                        <ChildContent>
-                            <MudText @onclick="@(() => CopyIdToClipboard(@context.Id))" >@context.Id.ToString().Substring(0, 5)...</MudText>    
-                        </ChildContent>
-                    </MudTooltip>
-                </MudTd>
-                <MudTd DataLabel="Sent by">@context.CreatedBy</MudTd>
-                <MudTd DataLabel="Count of Receivers">@context.HowManyEmailsSent</MudTd>
-                <MudTd DataLabel="Sent time">@context.CreatedTime</MudTd>
-                <MudTd DataLabel="Receivers">
-                    <MudButton StartIcon="@Icons.Material.Filled.ViewList" OnClick="@(() => OpenDialog(@context.Receivers))">Show Receivers</MudButton>
-                </MudTd>
-            </RowTemplate>
-            <PagerContent>
-                <MudTablePager />
-            </PagerContent>
-        </MudTable>
-    }
-    else
-    {
-        <MudText Typo="Typo.h6">Loading history...</MudText>
-    }
+    <MudTabs Outlined="true" Centered="true" Elevation="5" >
+        <MudTabPanel Text="Single users" Icon="@Icons.Material.Filled.Person">
+            @if (_history.Count != 0)
+            {
+                <MudTable Items="@_history" Context="items">
+                    <ToolBarContent>
+                        <MudText Typo="Typo.h6">History of newsletter per person</MudText>
+                        <MudSpacer/>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh>Id</MudTh>
+                        <MudTh>Sent by</MudTh>
+                        <MudTh>Count of Receivers</MudTh>
+                        <MudTh>Sent time</MudTh>
+                        <MudTh>Receivers</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Id">
+                            <MudTooltip>
+                                <TooltipContent>
+                                    <MudText>@items.Id</MudText>
+                                </TooltipContent>
+                                <ChildContent>
+                                    <MudText @onclick="@(() => CopyIdToClipboard(items.Id))">@items.Id.ToString().Substring(0, 5)...</MudText>
+                                </ChildContent>
+                            </MudTooltip>
+                        </MudTd>
+                        <MudTd DataLabel="Sent by">@items.CreatedBy</MudTd>
+                        <MudTd DataLabel="Count of Receivers">@items.HowManyEmailsSent</MudTd>
+                        <MudTd DataLabel="Sent time">@items.CreatedTime</MudTd>
+                        <MudTd DataLabel="Receivers">
+                            <MudButton StartIcon="@Icons.Material.Filled.ViewList" OnClick="@(() => OpenDialog(items.Receivers))">Show Receivers</MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager/>
+                    </PagerContent>
+                </MudTable>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">Loading history...</MudText>
+            }
+        </MudTabPanel>
+
+        <MudTabPanel Text="All" Icon="@Icons.Material.Filled.AllInclusive">
+            @if (_history.Count != 0)
+            {
+                <MudSimpleTable>
+                    <thead>
+                    <tr>
+                        <th><MudText>How many mails sent</MudText></th>
+                        <th><MudText>Count of all mails Receivers</MudText></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td><MudText>@_history.Count</MudText></td>
+                        <td><MudText>@_history.Sum(m => m.HowManyEmailsSent)</MudText></td>
+                    </tr>
+                    </tbody>
+                </MudSimpleTable>
+            }
+            else
+            {
+                <MudText Typo="Typo.h6">Loading history...</MudText>
+            }
+        </MudTabPanel>
+    </MudTabs>
 </MudContainer>
 
 @code {
@@ -71,8 +101,9 @@
         DialogService.Show<ReceiversListDialog>("Receivers list", parameters, options);
     }
 
-    private void CopyIdToClipboard(Guid id)
+    private async Task CopyIdToClipboard(Guid id)
     {
-        System.Windows.Clipboard.SetText(id.ToString());
+        await Clipboard.SetTextAsync(id.ToString());
+        SnackBar.Add("Successfully copied selected ID", Severity.Success);
     }
 }
