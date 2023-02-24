@@ -1,6 +1,7 @@
 using System.Security.Policy;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using MudBlazor;
 using TextCopy;
 
@@ -15,10 +16,15 @@ partial class Administration
 
     private string CurrentUserRole { get; set; } = "User";
     private string _searchEMail;
+
     private bool _loadingUsers = true;
     private bool success;
+
     private IdentityUser _selectedUser = new();
+    private IdentityUser _newUser = new();
+
     private MudForm form;
+
     protected override async Task OnInitializedAsync()
     {
         GetUsers();
@@ -50,6 +56,11 @@ partial class Administration
 
         await Clipboard.SetTextAsync(element.ToString());
         Snackbar.Add("Successfully copied selected element", Severity.Success);
+    }
+    private void GenerateNewGuid()
+    {
+        _newUser.Id = Guid.NewGuid().ToString();
+        StateHasChanged();
     }
     private IEnumerable<string> PasswordStrength(string pw)
     {
@@ -117,56 +128,64 @@ partial class Administration
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(_selectedUser.Id))
+            var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
+            user.Email = _selectedUser.Email;
+            user.UserName = _selectedUser.Email;
+            await _UserManager.UpdateAsync(user);
+
+            if (_selectedUser.PasswordHash != "******")
             {
-                var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
-                user.Email = _selectedUser.Email;
-                await _UserManager.UpdateAsync(user);
+                var resetToken = await _UserManager.GeneratePasswordResetTokenAsync(user);
+                var passwordUser = await _UserManager.ResetPasswordAsync(user, resetToken, _selectedUser.PasswordHash);
 
-                if (_selectedUser.PasswordHash != "******")
+                if (!passwordUser.Succeeded)
                 {
-                    var resetToken = await _UserManager.GeneratePasswordResetTokenAsync(user);
-                    var passwordUser = await _UserManager.ResetPasswordAsync(user, resetToken, _selectedUser.PasswordHash);
-
-                    if (!passwordUser.Succeeded)
+                    if (passwordUser.Errors.FirstOrDefault() != null)
                     {
-                        if (passwordUser.Errors.FirstOrDefault() != null)
-                        {
-                            strError = passwordUser.Errors.FirstOrDefault().Description;
-                            return;
-                        }
-
-                        strError = "Password error";
-                        return;
-                    }
-                }
-            }
-            else
-            {
-                var NewUser = new IdentityUser { UserName = _selectedUser.UserName, Email = _selectedUser.Email };
-                var CreateResult = await _UserManager.CreateAsync(NewUser, _selectedUser.PasswordHash);
-
-                if (!CreateResult.Succeeded)
-                {
-                    if (CreateResult.Errors.FirstOrDefault() != null)
-                    {
-                        strError = CreateResult.Errors.FirstOrDefault().Description;
+                        Snackbar.Add(passwordUser.Errors.FirstOrDefault().Description, Severity.Error);
                         return;
                     }
 
-                    strError = "Create error";
+                    Snackbar.Add("Password error", Severity.Error);
                     return;
                 }
-
-                if (CreateResult.Succeeded)
-                    await _UserManager.AddToRoleAsync(NewUser, "User");
             }
 
             GetUsers();
         }
         catch (Exception ex)
         {
-            strError = ex.GetBaseException().Message;
+            Snackbar.Add(ex.GetBaseException().Message, Severity.Error);
+        }
+    }
+
+    async Task CreateUser()
+    {
+        try
+        {
+            var NewUser = new IdentityUser { UserName = _selectedUser.UserName, Email = _selectedUser.Email };
+            var CreateResult = await _UserManager.CreateAsync(NewUser, _selectedUser.PasswordHash);
+
+            if (!CreateResult.Succeeded)
+            {
+                if (CreateResult.Errors.FirstOrDefault() != null)
+                {
+                    Snackbar.Add(CreateResult.Errors.FirstOrDefault().Description, Severity.Error);
+                    return;
+                }
+
+                Snackbar.Add("Create error", Severity.Error);
+                return;
+            }
+
+            if (CreateResult.Succeeded)
+                await _UserManager.AddToRoleAsync(NewUser, "User");
+
+            GetUsers();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.GetBaseException().Message, Severity.Error);
         }
     }
     async Task DeleteUser()
