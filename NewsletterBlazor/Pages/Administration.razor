@@ -2,7 +2,6 @@
 @attribute [Authorize]
 
 @using Microsoft.AspNetCore.Identity
-@using System.Text.RegularExpressions
 @using System.ComponentModel.DataAnnotations
 @using TextCopy
 
@@ -19,7 +18,7 @@
             <MudTabs Elevation="5" Rounded="true" Centered="true">
                 <MudTabPanel Icon="@Icons.Material.Filled.Person" Text="Users">
                     <MudTable Items="_usersList" Context="items" Filter="new Func<IdentityUser,bool>(FilterFunc1)" @bind-SelectedItem="_selectedUser"
-                              Hover="true" Loading="_loadingUsers" Elevation="5">
+                              Hover="true" Loading="_loadingUsers" Elevation="5" OnRowClick="CheckRoles">
                         <ToolBarContent>
                             <MudText Typo="Typo.h6">Users</MudText>
                             <MudSpacer />
@@ -47,14 +46,7 @@
                                 <MudText @onclick="@(() => CopyIdToClipboard(items.Email))">@items.Email</MudText>
                             </MudTd>
                             <MudTd>
-                                @if (items.EmailConfirmed)
-                                {
-                                    <MudCheckBox Checked="true" Disabled="true"/>
-                                }
-                                else
-                                {
-                                    <MudCheckBox Checked="false" Disabled="false" CheckedChanged="@(() => ConfirmEmail(items.Id))" />
-                                }
+                                <MudCheckBox Checked="@items.EmailConfirmed" Disabled="true"/>
                             </MudTd>
                         </RowTemplate>
 
@@ -68,7 +60,7 @@
                             <MudCard Elevation="5">
                                 <MudCardHeader>
                                     <CardHeaderContent><MudText>Selected user: @_selectedUser.Email</MudText></CardHeaderContent>
-                                    <CardHeaderActions><MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Warning" Variant="Variant.Text">Reset selecting</MudButton></CardHeaderActions>
+                                    <CardHeaderActions><MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Warning" Variant="Variant.Text" OnClick="ResetForm" >Reset selecting</MudButton></CardHeaderActions>
                                 </MudCardHeader>
 
                                 <MudCardContent>
@@ -79,6 +71,8 @@
                                                       InputType="InputType.Password"
                                                       Validation="@(new Func<string, IEnumerable<string>>(PasswordStrength))" Required="true"
                                                       RequiredError="Password is required!"/>
+
+                                        <MudButton OnClick="@(() => ConfirmEmail(_selectedUser.Id))" Disabled="@_selectedUser.EmailConfirmed" Color="Color.Primary" Variant="Variant.Filled">Confirm email</MudButton>
                                     </MudForm>
                                 </MudCardContent>
 
@@ -92,11 +86,38 @@
                         <MudContainer>
                             <MudCard Elevation="5">
                                 <MudCardHeader>
-                                    <CardHeaderContent><MudText>Selected User Roles</MudText></CardHeaderContent>
+                                    <CardHeaderContent><MudText>Roles manager</MudText></CardHeaderContent>
                                 </MudCardHeader>
 
                                 <MudCardContent>
-
+                                    <MudText>Selected user's roles:</MudText>
+                                    @if (_currentUserRoles.Count != 0)
+                                    {
+                                        foreach (var role in _currentUserRoles)
+                                        {
+                                            <MudText>@role - <MudButton Color="Color.Primary" Variant="Variant.Text" OnClick="@(() => RemoveRole(role))">Remove</MudButton></MudText>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText>User does not have any roles</MudText>
+                                    }
+                                    <br />
+                                    <MudText>Available roles:</MudText>
+                                    @if (CheckAvailableRoles())
+                                    {
+                                        foreach (var role in AllRoles)
+                                        {
+                                            if (!_currentUserRoles.Contains(role))
+                                            {
+                                                <MudText>@role - <MudButton Color="Color.Success" Variant="Variant.Text" OnClick="@(() => AddRole(role))">Add</MudButton></MudText>
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <MudText>There are not any more available roles</MudText>
+                                    }
                                 </MudCardContent>
                             </MudCard>
                         </MudContainer>
@@ -105,79 +126,33 @@
                 </MudTabPanel>
 
                 <MudTabPanel Icon="@Icons.Material.Filled.Add" Text="Add user">
-                    <MudCard>
+                    <MudCard Elevation="5">
                         <MudCardHeader>
-                            <CardHeaderContent></CardHeaderContent>
-                            <CardHeaderActions></CardHeaderActions>
+                            <CardHeaderContent><MudText @onclick="@(() => CopyIdToClipboard(@_newUser.Id))">ID: @_newUser.Id</MudText></CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="GenerateNewGuid" />
+                                <MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Warning" Variant="Variant.Text" OnClick="ResetForm">Reset form</MudButton>
+                            </CardHeaderActions>
                         </MudCardHeader>
-                        
-                        <MudCardContent></MudCardContent>
-                        
-                        <MudCardActions></MudCardActions>
+
+                        <MudCardContent>
+                            <MudForm @ref="form" @bind-IsValid="@success">
+                                <MudTextField T="string" Label="Email" Required="true" RequiredError="Email is required!" @bind-Value="_selectedUser.Email" For="@(() => _selectedUser.Email)"
+                                              Validation="@(new EmailAddressAttribute() {ErrorMessage = "The email address is invalid"})" />
+                                <MudTextField T="string" Label="Password" HelperText="Choose a strong password" @bind-Value="_selectedUser.PasswordHash" For="@(() => _selectedUser.PasswordHash)"
+                                              InputType="InputType.Password"
+                                              Validation="@(new Func<string, IEnumerable<string>>(PasswordStrength))" Required="true"
+                                              RequiredError="Password is required!" />
+                            </MudForm>
+                        </MudCardContent>
+
+                        <MudCardActions>
+                            <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" OnClick="CreateUser">Create</MudButton>
+                        </MudCardActions>
                     </MudCard>
                 </MudTabPanel>
             </MudTabs>
         </MudContainer>
-
-        @if (ShowPopup)
-        {
-            <!-- This is the popup to create or edit a user -->
-            <div class="modal" tabindex="-1" style="display: block" role="dialog">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h3 class="modal-title">Edit User</h3>
-
-                            <button type="button" class="btn-close" aria-label="Close" @onclick="ClosePopup"></button>
-                        </div>
-
-                        <div class="modal-body">
-                            @if (_selectedUser.Id != "")
-                            {
-                                <p>@_selectedUser.Id</p>
-                            }
-
-                            @if (_selectedUser.Id != "")
-                            {
-                                <p>@_selectedUser.UserName</p>
-                            }
-                            else
-                            {
-                                <input class="form-control" type="text" placeholder="UserName" @bind="_selectedUser.UserName"/>
-                            }
-
-                            <input class="form-control" type="text" placeholder="Email" @bind="_selectedUser.Email"/>
-                            <input class="form-control" type="password" placeholder="Password" @bind="_selectedUser.PasswordHash"/>
-                            <select class="form-control" @bind="@CurrentUserRole">
-                                @foreach (var option in Options)
-                                {
-                                    <option value="@option">
-                                        @option
-                                    </option>
-                                }
-                            </select>
-
-                            <br/><br/>
-
-                            <button class="btn btn-primary" @onclick="SaveUser"> Save </button>
-
-                            @if (_selectedUser.Id != "")
-                            {
-                                <button class="btn btn-danger" @onclick="DeleteUser"> Delete </button>
-                            }
-                            <br/><br/>
-
-                            <button class="btn btn-primary" @onclick="AddRole"> Add role </button>
-                            <button class="btn btn-danger" @onclick="RemoveRole"> Remove role </button>
-                            <button class="btn btn-info" @onclick="CheckRoles"> Check roles </button><br/><br/>
-
-                            <span style="color: green">@success</span>
-                            <span style="color: red">@strError</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
     </Authorized>
     <NotAuthorized>
         <p>You don't have permissions to see this page.</p>

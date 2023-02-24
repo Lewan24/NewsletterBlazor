@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Policy;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
@@ -13,17 +14,20 @@ partial class Administration
 {
     public List<string> Options = new() { "User", "Admin" };
     private List<IdentityUser> _usersList = new();
-
-    private string CurrentUserRole { get; set; } = "User";
+    
     private string _searchEMail;
+    private List<string> _currentUserRoles = new();
 
     private bool _loadingUsers = true;
     private bool success;
 
     private IdentityUser _selectedUser = new();
     private IdentityUser _newUser = new();
-
+    
     private MudForm form;
+
+    // TODO: Add entity with list of roles, then apply that list to every selection etc
+    private List<string> AllRoles = new() { "User", "Admin" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,6 +66,13 @@ partial class Administration
         _newUser.Id = Guid.NewGuid().ToString();
         StateHasChanged();
     }
+    private void ResetForm()
+    {
+        _selectedUser = new();
+        _newUser = new();
+
+        StateHasChanged();
+    }
     private IEnumerable<string> PasswordStrength(string pw)
     {
         if (string.IsNullOrWhiteSpace(pw))
@@ -80,46 +91,57 @@ partial class Administration
     }
 
     #region Roles management
-    async Task AddRole()
+    async Task AddRole(string role)
     {
         var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
-        var doesUserHasRole = await _UserManager.IsInRoleAsync(user, CurrentUserRole);
+        var doesUserHasRole = await _UserManager.IsInRoleAsync(user, role);
 
         if (!doesUserHasRole)
         {
-            await _UserManager.AddToRoleAsync(user, CurrentUserRole);
-            success = $"Successfully added {CurrentUserRole} role to user";
+            await _UserManager.AddToRoleAsync(user, role);
+            Snackbar.Add($"Successfully added {role} role to user", Severity.Success);
             return;
         }
 
-        strError = "User is already in this role.";
+        Snackbar.Add("User is already in this role.", Severity.Warning);
+
+        StateHasChanged();
     }
-    async Task RemoveRole()
+    async Task RemoveRole(string role)
     {
         var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
-        var doesUserHasRole = await _UserManager.IsInRoleAsync(user, CurrentUserRole);
+        var doesUserHasRole = await _UserManager.IsInRoleAsync(user, role);
 
         if (!doesUserHasRole)
         {
-            strError = "User does not has this role.";
+            Snackbar.Add("User does not has this role.", Severity.Warning);
             return;
         }
 
-        await _UserManager.RemoveFromRoleAsync(user, CurrentUserRole);
-        success = $"Successfully removed {CurrentUserRole} role from user";
+        await _UserManager.RemoveFromRoleAsync(user, role);
+        Snackbar.Add($"Successfully removed {role} role from user", Severity.Success);
+
+        StateHasChanged();
     }
     async Task CheckRoles()
     {
         var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
-        var userRoles = await _UserManager.GetRolesAsync(user);
+        _currentUserRoles = (await _UserManager.GetRolesAsync(user)).ToList();
 
-        success = "User Roles: ";
+        StateHasChanged();
+    }
 
-        foreach (var role in userRoles)
-            success += $"{role}, ";
+    private bool CheckRolesAvaibility()
+    {
+        var availableRoles = AllRoles.Count(role => _currentUserRoles.Contains(role));
+
+        if (availableRoles > 0)
+            return true;
+
+        return false;
     }
     #endregion
 
@@ -158,12 +180,17 @@ partial class Administration
             Snackbar.Add(ex.GetBaseException().Message, Severity.Error);
         }
     }
-
     async Task CreateUser()
     {
         try
         {
-            var NewUser = new IdentityUser { UserName = _selectedUser.UserName, Email = _selectedUser.Email };
+            var NewUser = new IdentityUser();
+
+            if (_newUser.Id is null or "")
+                NewUser = new IdentityUser { UserName = _selectedUser.UserName, Email = _selectedUser.Email };
+            else
+                NewUser = new IdentityUser { Id = _newUser.Id, UserName = _selectedUser.UserName, Email = _selectedUser.Email };
+
             var CreateResult = await _UserManager.CreateAsync(NewUser, _selectedUser.PasswordHash);
 
             if (!CreateResult.Succeeded)
