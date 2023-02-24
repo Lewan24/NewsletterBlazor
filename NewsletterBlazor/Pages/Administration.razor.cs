@@ -8,7 +8,6 @@ namespace NewsletterBlazor.Pages;
 
 partial class Administration
 {
-    public List<string> Options = new() { "User", "Admin" };
     private List<IdentityUser> _usersList = new();
     
     private string _searchEMail;
@@ -213,7 +212,7 @@ partial class Administration
     }
     async Task DeleteUser()
     {
-        bool? result = await DialogService.ShowMessageBox(
+        bool? result = await _dialogService.ShowMessageBox(
             "Warning",
             "Deleting can not be undone!",
             yesText: "Delete!", cancelText: "Cancel");
