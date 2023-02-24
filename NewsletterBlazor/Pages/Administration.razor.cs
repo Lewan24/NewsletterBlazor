@@ -1,5 +1,8 @@
+using System.Security.Policy;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
-using NewsletterBlazor.Data.Entities;
+using MudBlazor;
+using TextCopy;
 
 namespace NewsletterBlazor.Pages;
 
@@ -7,43 +10,68 @@ namespace NewsletterBlazor.Pages;
 
 partial class Administration
 {
-    Pagination pagination = new(15);
-    
-    IdentityUser SelectedUser = new();
-    List<IdentityUser> UsersList;
+    public List<string> Options = new() { "User", "Admin" };
+    private List<IdentityUser> _usersList = new();
 
-    bool ShowPopup = false;
-
-    string CurrentUserRole { get; set; } = "User";
-    string? Filter;
-    string strError = "";
-    string success = "";
-
-    List<string> Options = new() { "User", "Admin"};
-
-    protected async override Task OnInitializedAsync()
+    private string CurrentUserRole { get; set; } = "User";
+    private string _searchEMail;
+    private bool _loadingUsers = true;
+    private bool success;
+    private IdentityUser _selectedUser = new();
+    private MudForm form;
+    protected override async Task OnInitializedAsync()
     {
         GetUsers();
 
         var authState = await _AuthenticationStateProvider.GetAuthenticationStateAsync();
         var userPrincipal = authState.User.Identity;
-        var user = UsersList.FirstOrDefault(u => u.UserName == userPrincipal.Name);
+        var user = _usersList.FirstOrDefault(u => u.UserName == userPrincipal.Name);
 
-        var roles = new List<string>() { "Admin", "User" };
+        var roles = new List<string> { "Admin", "User" };
         
-        if (user.Email == _config["Administration:Admin"] & !await _UserManager.IsInRoleAsync(user, "Admin"))
+        if (user.Email == _config["Administration:Admin"] && !await _UserManager.IsInRoleAsync(user, "Admin"))
             await _UserManager.AddToRolesAsync(user, roles);
+    }
+    private bool FilterFunc1(IdentityUser user) => FilterFunc(user, _searchEMail);
+    private bool FilterFunc(IdentityUser user, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (user.Email.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (user.Id.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+    private async Task CopyIdToClipboard<T>(T element)
+    {
+        if (element is null)
+            return;
 
-        await pagination.LoadSettings(UsersList);
+        await Clipboard.SetTextAsync(element.ToString());
+        Snackbar.Add("Successfully copied selected element", Severity.Success);
+    }
+    private IEnumerable<string> PasswordStrength(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw))
+        {
+            yield return "Password is required!";
+            yield break;
+        }
+        if (pw.Length < 6)
+            yield return "Password must be at least of length 6";
+        if (!Regex.IsMatch(pw, @"[A-Z]"))
+            yield return "Password must contain at least one capital letter";
+        if (!Regex.IsMatch(pw, @"[a-z]"))
+            yield return "Password must contain at least one lowercase letter";
+        if (!Regex.IsMatch(pw, @"[0-9]"))
+            yield return "Password must contain at least one digit";
     }
 
     #region Roles management
     async Task AddRole()
     {
-        success = "";
-        strError = "";
-
-        var user = await _UserManager.FindByIdAsync(SelectedUser.Id);
+        var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
         var doesUserHasRole = await _UserManager.IsInRoleAsync(user, CurrentUserRole);
 
@@ -58,10 +86,7 @@ partial class Administration
     }
     async Task RemoveRole()
     {
-        success = "";
-        strError = "";
-
-        var user = await _UserManager.FindByIdAsync(SelectedUser.Id);
+        var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
         var doesUserHasRole = await _UserManager.IsInRoleAsync(user, CurrentUserRole);
 
@@ -76,10 +101,7 @@ partial class Administration
     }
     async Task CheckRoles()
     {
-        success = "";
-        strError = "";
-
-        var user = await _UserManager.FindByIdAsync(SelectedUser.Id);
+        var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
         var userRoles = await _UserManager.GetRolesAsync(user);
 
@@ -91,37 +113,20 @@ partial class Administration
     #endregion
 
     #region User Management
-    async Task EditUser(IdentityUser _IdentityUser)
-    {
-        SelectedUser = _IdentityUser;
-        var user = await _UserManager.FindByIdAsync(SelectedUser.Id);
-
-        if (user is null)
-            return;
-
-        var UserResult = await _UserManager.IsInRoleAsync(user, "Admin");
-
-        if (UserResult)
-            CurrentUserRole = "Admin";
-        else
-            CurrentUserRole = "User";
-
-        ShowPopup = true;
-    }
     async Task SaveUser()
     {
         try
         {
-            if (!string.IsNullOrWhiteSpace(SelectedUser.Id))
+            if (!string.IsNullOrWhiteSpace(_selectedUser.Id))
             {
-                var user = await _UserManager.FindByIdAsync(SelectedUser.Id);
-                user.Email = SelectedUser.Email;
+                var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
+                user.Email = _selectedUser.Email;
                 await _UserManager.UpdateAsync(user);
 
-                if (SelectedUser.PasswordHash != "******")
+                if (_selectedUser.PasswordHash != "******")
                 {
                     var resetToken = await _UserManager.GeneratePasswordResetTokenAsync(user);
-                    var passwordUser = await _UserManager.ResetPasswordAsync(user, resetToken, SelectedUser.PasswordHash);
+                    var passwordUser = await _UserManager.ResetPasswordAsync(user, resetToken, _selectedUser.PasswordHash);
 
                     if (!passwordUser.Succeeded)
                     {
@@ -135,19 +140,11 @@ partial class Administration
                         return;
                     }
                 }
-
-                var UserResult = await _UserManager.IsInRoleAsync(user, "Admin");
-
-                if ((CurrentUserRole == "Admin") & (!UserResult))
-                    await _UserManager.AddToRoleAsync(user, "Admin");
-
-                if ((CurrentUserRole != "Admin") & (UserResult))
-                    await _UserManager.RemoveFromRoleAsync(user, "Admin");
             }
             else
             {
-                var NewUser = new IdentityUser { UserName = SelectedUser.UserName, Email = SelectedUser.Email };
-                var CreateResult = await _UserManager.CreateAsync(NewUser, SelectedUser.PasswordHash);
+                var NewUser = new IdentityUser { UserName = _selectedUser.UserName, Email = _selectedUser.Email };
+                var CreateResult = await _UserManager.CreateAsync(NewUser, _selectedUser.PasswordHash);
 
                 if (!CreateResult.Succeeded)
                 {
@@ -162,14 +159,10 @@ partial class Administration
                 }
 
                 if (CreateResult.Succeeded)
-                    if (!await _UserManager.IsInRoleAsync(NewUser, "User"))
-                        await _UserManager.AddToRoleAsync(NewUser, "User");
+                    await _UserManager.AddToRoleAsync(NewUser, "User");
             }
 
-            ShowPopup = false;
             GetUsers();
-
-            await pagination.LoadSettings(UsersList);
         }
         catch (Exception ex)
         {
@@ -178,29 +171,22 @@ partial class Administration
     }
     async Task DeleteUser()
     {
-        ShowPopup = false;
+        bool? result = await DialogService.ShowMessageBox(
+            "Warning",
+            "Deleting can not be undone!",
+            yesText: "Delete!", cancelText: "Cancel");
 
-        var user = await _UserManager.FindByIdAsync(SelectedUser.Id);
+        if (result is null or false)
+            return;
+
+        var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
         if (user != null)
             await _UserManager.DeleteAsync(user);
 
         GetUsers();
-
-        await pagination.LoadSettings(UsersList);
     }
     #endregion
-
-    private bool IsVisible(IdentityUser user)
-    {
-        if (string.IsNullOrEmpty(Filter))
-            return true;
-
-        if (user.Email.Contains(Filter, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return false;
-    }
 
     async Task ConfirmEmail(string id)
     {
@@ -212,16 +198,12 @@ partial class Administration
         var token = await _UserManager.GenerateEmailConfirmationTokenAsync(user);
         await _UserManager.ConfirmEmailAsync(user, token);
 
-        GetUsers();
-
-        await pagination.LoadSettings(UsersList);
+        _usersList.FirstOrDefault(u => u.Id == id)!.EmailConfirmed = true;
+        StateHasChanged();
     }
-
-    public void GetUsers()
+    private void GetUsers()
     {
-        strError = "";
-
-        UsersList = new();
+        _loadingUsers = true;
 
         var usersFromDB = _UserManager.Users.Select(x => new IdentityUser
         {
@@ -233,8 +215,11 @@ partial class Administration
         });
 
         foreach (var user in usersFromDB)
-            UsersList.Add(user);
-    }
+        {
+            _usersList.Add(user);
+            StateHasChanged();
+        }
 
-    void ClosePopup() => ShowPopup = false;
+        _loadingUsers = false;
+    }
 }

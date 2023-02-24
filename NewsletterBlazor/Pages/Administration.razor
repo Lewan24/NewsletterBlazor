@@ -2,88 +2,127 @@
 @attribute [Authorize]
 
 @using Microsoft.AspNetCore.Identity
+@using System.Text.RegularExpressions
+@using System.ComponentModel.DataAnnotations
+@using TextCopy
 
 @inject UserManager<IdentityUser> _UserManager
 @inject AuthenticationStateProvider _AuthenticationStateProvider
 @inject IConfiguration _config
+@inject ISnackbar Snackbar
+@inject IClipboard Clipboard
+@inject IDialogService DialogService
 
 <AuthorizeView Roles="Admin">
     <Authorized>
-        @if(pagination.IsReadyToWork)
-        {
-            <nav aria-label="Page navigation example">
-                <ul class="pagination justify-content-center flex-wrap">
-                    <li class="page-item @pagination.IsPreviousDisabledString">
-                        <a class="page-link" @onclick="() => pagination.ChangeSelectedPage(pagination.SelectedPage-1, UsersList)">Poprzednia</a>
-                    </li>
-
-                    @foreach(var link in pagination.Links)
-                    {
-                        <li class="page-item @link.IsActiveString">
-                            <a class="page-link" @onclick="() => pagination.ChangeSelectedPage(link.ID, UsersList)">@(link.ID+1)</a>
-                        </li>
-                    }
-
-                    <li class="page-item @pagination.IsNextDisabledString" >
-                        <a class= "page-link" @onclick="() => pagination.ChangeSelectedPage(pagination.SelectedPage+1, UsersList)">Następna</a>
-                    </li>
-                </ul>
-            </nav>
-        }
-
-        <div class="form-group">
-            <input class="form-control" type="text" placeholder="Szukaj po emailu..." @bind="Filter" @bind:event="oninput" />
-        </div>
-
-        @if(UsersList.Count != 0)
-        {
-            <table class="table table-bordered">
-                <thead class="thead bg-black bg-gradient text-white">
-                    <tr>
-                        <th>Id</th>
-                        <th>Email</th>
-                        <th>Is Confirmed</th>
-                        <th>Opcje</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    @foreach (var user in (string.IsNullOrEmpty(Filter) ? pagination.ActualPageUsers : UsersList))
-                    {
-                        if (!IsVisible(user))
-                            continue;
-
-                        <tr class="hovertr">
-                            <td>@user.Id.Substring(0, 5) ...</td>
-                            <td>@user.Email</td>
-                            <td>
-                                @if (user.EmailConfirmed)
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <MudTabs Elevation="5" Rounded="true" Centered="true">
+                <MudTabPanel Icon="@Icons.Material.Filled.Person" Text="Users">
+                    <MudTable Items="_usersList" Context="items" Filter="new Func<IdentityUser,bool>(FilterFunc1)" @bind-SelectedItem="_selectedUser"
+                              Hover="true" Loading="_loadingUsers" Elevation="5">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.h6">Users</MudText>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_searchEMail" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"/>
+                        </ToolBarContent>
+                        
+                        <HeaderContent>
+                            <MudTh>Id</MudTh>
+                            <MudTh>Email</MudTh>
+                            <MudTh>Is Confirmed</MudTh>
+                        </HeaderContent>
+                        
+                        <RowTemplate>
+                            <MudTd DataLabel="Id">
+                                <MudTooltip>
+                                    <TooltipContent>
+                                        <MudText>@items.Id</MudText>
+                                    </TooltipContent>
+                                    <ChildContent>
+                                        <MudText @onclick="@(() => CopyIdToClipboard(items.Id))">@items.Id.ToString().Substring(0, 5)...</MudText>
+                                    </ChildContent>
+                                </MudTooltip>
+                            </MudTd>
+                            <MudTd>
+                                <MudText @onclick="@(() => CopyIdToClipboard(items.Email))">@items.Email</MudText>
+                            </MudTd>
+                            <MudTd>
+                                @if (items.EmailConfirmed)
                                 {
-                                    <input class="form-check-input" type="checkbox" disabled checked>
+                                    <MudCheckBox Checked="true" Disabled="true"/>
                                 }
                                 else
                                 {
-                                    <input class="form-check-input" type="checkbox" @onchange="() => ConfirmEmail(user.Id)">
+                                    <MudCheckBox Checked="false" Disabled="false" CheckedChanged="@(() => ConfirmEmail(items.Id))" />
                                 }
-                            </td>
-                            <td>
-                                <button class="btn btn-dark btn-outline-info" @onclick="() => EditUser(user)">
-                                    Edit
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-        else{
-            <p>Loading users...</p>
-        }
+                            </MudTd>
+                        </RowTemplate>
+
+                        <PagerContent>
+                            <MudTablePager/>
+                        </PagerContent>
+                    </MudTable>
+                    
+                    <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 d-flex flex-row justify-center">
+                        <MudContainer>
+                            <MudCard Elevation="5">
+                                <MudCardHeader>
+                                    <CardHeaderContent><MudText>Selected user: @_selectedUser.Email</MudText></CardHeaderContent>
+                                    <CardHeaderActions><MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Warning" Variant="Variant.Text">Reset selecting</MudButton></CardHeaderActions>
+                                </MudCardHeader>
+
+                                <MudCardContent>
+                                    <MudForm @ref="form" @bind-IsValid="@success">
+                                        <MudTextField T="string" Label="Email" Required="true" RequiredError="Email is required!" @bind-Value="_selectedUser.Email" For="@(() => _selectedUser.Email)"
+                                                      Validation="@(new EmailAddressAttribute() {ErrorMessage = "The email address is invalid"})"/>
+                                        <MudTextField T="string" Label="Password" HelperText="Choose a strong password" @bind-Value="_selectedUser.PasswordHash" For="@(() => _selectedUser.PasswordHash)"
+                                                      InputType="InputType.Password"
+                                                      Validation="@(new Func<string, IEnumerable<string>>(PasswordStrength))" Required="true"
+                                                      RequiredError="Password is required!"/>
+                                    </MudForm>
+                                </MudCardContent>
+
+                                <MudCardActions>
+                                    <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success">Save</MudButton>
+                                    <MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="DeleteUser">Delete</MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudContainer>
+
+                        <MudContainer>
+                            <MudCard Elevation="5">
+                                <MudCardHeader>
+                                    <CardHeaderContent><MudText>Selected User Roles</MudText></CardHeaderContent>
+                                </MudCardHeader>
+
+                                <MudCardContent>
+
+                                </MudCardContent>
+                            </MudCard>
+                        </MudContainer>
+                    </MudContainer>
+
+                </MudTabPanel>
+
+                <MudTabPanel Icon="@Icons.Material.Filled.Add" Text="Add user">
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent></CardHeaderContent>
+                            <CardHeaderActions></CardHeaderActions>
+                        </MudCardHeader>
+                        
+                        <MudCardContent></MudCardContent>
+                        
+                        <MudCardActions></MudCardActions>
+                    </MudCard>
+                </MudTabPanel>
+            </MudTabs>
+        </MudContainer>
 
         @if (ShowPopup)
         {
             <!-- This is the popup to create or edit a user -->
-            <div class="modal" tabindex="-1" style="display:block" role="dialog">
+            <div class="modal" tabindex="-1" style="display: block" role="dialog">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -93,22 +132,22 @@
                         </div>
 
                         <div class="modal-body">
-                            @if (SelectedUser.Id != "")
+                            @if (_selectedUser.Id != "")
                             {
-                                <p>@SelectedUser.Id</p>
+                                <p>@_selectedUser.Id</p>
                             }
 
-                            @if (SelectedUser.Id != "")
+                            @if (_selectedUser.Id != "")
                             {
-                                <p>@SelectedUser.UserName</p>
+                                <p>@_selectedUser.UserName</p>
                             }
                             else
                             {
-                                <input class="form-control" type="text" placeholder="UserName" @bind="SelectedUser.UserName" />
+                                <input class="form-control" type="text" placeholder="UserName" @bind="_selectedUser.UserName"/>
                             }
 
-                            <input class="form-control" type="text" placeholder="Email" @bind="SelectedUser.Email" />
-                            <input class="form-control" type="password" placeholder="Password" @bind="SelectedUser.PasswordHash" />
+                            <input class="form-control" type="text" placeholder="Email" @bind="_selectedUser.Email"/>
+                            <input class="form-control" type="password" placeholder="Password" @bind="_selectedUser.PasswordHash"/>
                             <select class="form-control" @bind="@CurrentUserRole">
                                 @foreach (var option in Options)
                                 {
@@ -118,22 +157,22 @@
                                 }
                             </select>
 
-                            <br /><br />
+                            <br/><br/>
 
                             <button class="btn btn-primary" @onclick="SaveUser"> Save </button>
 
-                            @if (SelectedUser.Id != "")
+                            @if (_selectedUser.Id != "")
                             {
                                 <button class="btn btn-danger" @onclick="DeleteUser"> Delete </button>
                             }
-                            <br /><br />
+                            <br/><br/>
 
                             <button class="btn btn-primary" @onclick="AddRole"> Add role </button>
                             <button class="btn btn-danger" @onclick="RemoveRole"> Remove role </button>
-                            <button class="btn btn-info" @onclick="CheckRoles"> Check roles </button><br /><br />
+                            <button class="btn btn-info" @onclick="CheckRoles"> Check roles </button><br/><br/>
 
-                            <span style="color:green">@success</span>
-                            <span style="color:red">@strError</span>
+                            <span style="color: green">@success</span>
+                            <span style="color: red">@strError</span>
                         </div>
                     </div>
                 </div>
