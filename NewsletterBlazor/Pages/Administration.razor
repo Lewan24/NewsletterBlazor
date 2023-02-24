@@ -18,7 +18,7 @@
             <MudTabs Elevation="5" Rounded="true" Centered="true">
                 <MudTabPanel Icon="@Icons.Material.Filled.Person" Text="Users">
                     <MudTable Items="_usersList" Context="items" Filter="new Func<IdentityUser,bool>(FilterFunc1)" @bind-SelectedItem="_selectedUser"
-                              Hover="true" Loading="_loadingUsers" Elevation="5" OnRowClick="CheckRoles">
+                              Hover="true" Loading="_loadingUsers" Elevation="5">
                         <ToolBarContent>
                             <MudText Typo="Typo.h6">Users</MudText>
                             <MudSpacer />
@@ -59,7 +59,7 @@
                         <MudContainer>
                             <MudCard Elevation="5">
                                 <MudCardHeader>
-                                    <CardHeaderContent><MudText>Selected user: @_selectedUser.Email</MudText></CardHeaderContent>
+                                    <CardHeaderContent><MudTextField T="string" ReadOnly="true" TextChanged="CheckRoles" @bind-Value="@_selectedUserString"/></CardHeaderContent>
                                     <CardHeaderActions><MudButton StartIcon="@Icons.Material.Filled.Delete" Color="Color.Warning" Variant="Variant.Text" OnClick="ResetForm" >Reset selecting</MudButton></CardHeaderActions>
                                 </MudCardHeader>
 
@@ -86,7 +86,9 @@
                         <MudContainer>
                             <MudCard Elevation="5">
                                 <MudCardHeader>
-                                    <CardHeaderContent><MudText>Roles manager</MudText></CardHeaderContent>
+                                    <CardHeaderContent>
+                                        <MudText>Roles manager</MudText>
+                                    </CardHeaderContent>
                                 </MudCardHeader>
 
                                 <MudCardContent>

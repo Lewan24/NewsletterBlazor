@@ -3,6 +3,9 @@
 @attribute [IgnoreAntiforgeryToken]
 @inject SignInManager<IdentityUser> SignInManager
 @functions {
+    //TODO: Change design to mudblazor
+    //TODO: Fix logging in
+
     public async Task<IActionResult> OnPost()
     {
         if (SignInManager.IsSignedIn(User))

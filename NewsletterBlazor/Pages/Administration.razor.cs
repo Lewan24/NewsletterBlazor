@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using MudBlazor;
 
@@ -11,6 +12,7 @@ partial class Administration
     private List<IdentityUser> _usersList = new();
     
     private string _searchEMail;
+    private string _selectedUserString = "";
     private List<string> _currentUserRoles = new();
 
     private bool _loadingUsers = true;
@@ -26,17 +28,32 @@ partial class Administration
 
     protected override async Task OnInitializedAsync()
     {
-        GetUsers();
+        try
+        {
+            GetUsers();
 
-        var authState = await _AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var userPrincipal = authState.User.Identity;
-        var user = _usersList.FirstOrDefault(u => u.UserName == userPrincipal.Name);
+            var authState = await _AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userPrincipal = authState.User.Identity;
+            var user = _usersList.FirstOrDefault(u => u.UserName == userPrincipal.Name);
 
-        var roles = new List<string> { "Admin", "User" };
+            var roles = new List<string> { "Admin", "User" };
         
-        if (user.Email == _config["Administration:Admin"] && !await _UserManager.IsInRoleAsync(user, "Admin"))
-            await _UserManager.AddToRolesAsync(user, roles);
+            if (user.Email == _config["Administration:Admin"] && !await _UserManager.IsInRoleAsync(user, "Admin"))
+                await _UserManager.AddToRolesAsync(user, roles);
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add($"Error while initializing page, {e.GetBaseException().Message}", Severity.Error);
+        }
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _selectedUserString = $"Selected user: {_selectedUser.Email}";
+        StateHasChanged();
+        await Task.Delay(100);
+    }
+
     private bool FilterFunc1(IdentityUser user) => FilterFunc(user, _searchEMail);
     private bool FilterFunc(IdentityUser user, string searchString)
     {
@@ -61,12 +78,12 @@ partial class Administration
         _newUser.Id = Guid.NewGuid().ToString();
         StateHasChanged();
     }
-    private void ResetForm()
+    private async void ResetForm()
     {
         _selectedUser = new();
         _newUser = new();
-
-        StateHasChanged();
+        await CheckRoles();
+        await InvokeAsync(StateHasChanged);
     }
     private IEnumerable<string> PasswordStrength(string pw)
     {
@@ -96,12 +113,12 @@ partial class Administration
         {
             await _UserManager.AddToRoleAsync(user, role);
             Snackbar.Add($"Successfully added {role} role to user", Severity.Success);
+            await CheckRoles();
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
         Snackbar.Add("User is already in this role.", Severity.Warning);
-
-        StateHasChanged();
     }
     async Task RemoveRole(string role)
     {
@@ -117,16 +134,27 @@ partial class Administration
 
         await _UserManager.RemoveFromRoleAsync(user, role);
         Snackbar.Add($"Successfully removed {role} role from user", Severity.Success);
-
-        StateHasChanged();
+        await CheckRoles();
+        await InvokeAsync(StateHasChanged);
     }
     async Task CheckRoles()
     {
-        var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
-
-        _currentUserRoles = (await _UserManager.GetRolesAsync(user)).ToList();
-
-        StateHasChanged();
+        if (!string.IsNullOrWhiteSpace(_selectedUser.UserName))
+        {
+            try
+            {
+                var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
+                _currentUserRoles = (await _UserManager.GetRolesAsync(user)).ToList();
+            }
+            catch (Exception e)
+            {
+                Snackbar.Add(e.GetBaseException().Message, Severity.Error);
+            }
+        }
+        else
+        {
+            _currentUserRoles.Clear();
+        }
     }
 
     private bool CheckAvailableRoles()
@@ -150,25 +178,29 @@ partial class Administration
             user.UserName = _selectedUser.Email;
             await _UserManager.UpdateAsync(user);
 
-            if (_selectedUser.PasswordHash != "******")
+            if (_selectedUser.PasswordHash == "******")
             {
-                var resetToken = await _UserManager.GeneratePasswordResetTokenAsync(user);
-                var passwordUser = await _UserManager.ResetPasswordAsync(user, resetToken, _selectedUser.PasswordHash);
+                Snackbar.Add("Password cant be unchanged", Severity.Warning);
+                return;
+            }
 
-                if (!passwordUser.Succeeded)
+            var resetToken = await _UserManager.GeneratePasswordResetTokenAsync(user);
+            var passwordUser = await _UserManager.ResetPasswordAsync(user, resetToken, _selectedUser.PasswordHash);
+
+            if (!passwordUser.Succeeded)
+            {
+                if (passwordUser.Errors.FirstOrDefault() != null)
                 {
-                    if (passwordUser.Errors.FirstOrDefault() != null)
-                    {
-                        Snackbar.Add(passwordUser.Errors.FirstOrDefault().Description, Severity.Error);
-                        return;
-                    }
-
-                    Snackbar.Add("Password error", Severity.Error);
+                    Snackbar.Add(passwordUser.Errors.FirstOrDefault().Description, Severity.Error);
                     return;
                 }
+
+                Snackbar.Add("Password error", Severity.Error);
+                return;
             }
 
             GetUsers();
+            ResetForm();
         }
         catch (Exception ex)
         {
@@ -185,6 +217,9 @@ partial class Administration
                 NewUser = new IdentityUser { UserName = _selectedUser.UserName, Email = _selectedUser.Email };
             else
                 NewUser = new IdentityUser { Id = _newUser.Id, UserName = _selectedUser.UserName, Email = _selectedUser.Email };
+
+            if (_UserManager.Users.Any(u => u.Id == NewUser.Id))
+                return;
 
             var CreateResult = await _UserManager.CreateAsync(NewUser, _selectedUser.PasswordHash);
 
@@ -204,6 +239,7 @@ partial class Administration
                 await _UserManager.AddToRoleAsync(NewUser, "User");
 
             GetUsers();
+            ResetForm();
         }
         catch (Exception ex)
         {
@@ -212,20 +248,38 @@ partial class Administration
     }
     async Task DeleteUser()
     {
-        bool? result = await _dialogService.ShowMessageBox(
-            "Warning",
-            "Deleting can not be undone!",
-            yesText: "Delete!", cancelText: "Cancel");
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_selectedUser.Email))
+                return;
 
-        if (result is null or false)
-            return;
+            bool? result = await _dialogService.ShowMessageBox(
+                "Warning",
+                "Deleting can not be undone!",
+                yesText: "Delete!", cancelText: "Cancel");
 
-        var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
+            if (result is null or false)
+                return;
 
-        if (user != null)
-            await _UserManager.DeleteAsync(user);
+            var authState = await _AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var userPrincipal = authState.User.Identity;
+            var nowuser = _usersList.FirstOrDefault(u => u.UserName == userPrincipal.Name);
+        
+            var user = await _UserManager.FindByIdAsync(_selectedUser.Id);
 
-        GetUsers();
+            if (nowuser.Email == user.Email)
+                return;
+
+            if (user != null)
+                await _UserManager.DeleteAsync(user);
+
+            GetUsers();
+            ResetForm();
+        }
+        catch (Exception e)
+        {
+            Snackbar.Add("Error while deleting, possible empty selected user", Severity.Error);
+        }
     }
     #endregion
 
@@ -245,6 +299,7 @@ partial class Administration
     private void GetUsers()
     {
         _loadingUsers = true;
+        _usersList.Clear();
 
         var usersFromDB = _UserManager.Users.Select(x => new IdentityUser
         {
