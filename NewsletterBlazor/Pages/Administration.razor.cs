@@ -1,10 +1,6 @@
-using System.Data;
-using System.Security.Policy;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
 using MudBlazor;
-using TextCopy;
 
 namespace NewsletterBlazor.Pages;
 
@@ -134,7 +130,7 @@ partial class Administration
         StateHasChanged();
     }
 
-    private bool CheckRolesAvaibility()
+    private bool CheckAvailableRoles()
     {
         var availableRoles = AllRoles.Count(role => _currentUserRoles.Contains(role));
 
